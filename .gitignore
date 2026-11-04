@@ -1,0 +1,18 @@
+# ambiente
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# dados que não vão para o repositório: brutos passam de 700 MB; os intermediários são regeneráveis
+dados/brutos/
+dados/intermediarios/
+
+# artefatos locais do treino
+modelos/backup_*/
+modelos/checkpoint/
+optuna_*.db
+
+# credenciais
+.env
+*.token

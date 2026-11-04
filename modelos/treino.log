@@ -1,0 +1,212 @@
+validação 1: treino 365,210 | avaliação 126,432
+validação 2: treino 489,300 | avaliação 127,878
+teste: treino 615,732 | avaliação 266,319
+teste: perfis 2025-01-31 a 2026-02-28
+hiperparâmetros: buscas reaproveitadas: []
+    XGBoost + histórico (Brier) [1/20] Brier 0.01803 (31s)
+    XGBoost + histórico (Brier) [2/20] Brier 0.01808 (29s)
+    XGBoost + histórico (Brier) [3/20] Brier 0.01805 (17s)
+    XGBoost + histórico (Brier) [4/20] Brier 0.01804 (15s)
+    XGBoost + histórico (Brier) [5/20] Brier 0.01804 (30s)
+    XGBoost + histórico (Brier) [6/20] Brier 0.01809 (14s)
+    XGBoost + histórico (Brier) [7/20] Brier 0.01803 (25s)
+    XGBoost + histórico (Brier) [8/20] Brier 0.01804 (26s)
+    XGBoost + histórico (Brier) [9/20] Brier 0.01810 (20s)
+    XGBoost + histórico (Brier) [10/20] Brier 0.01875 (17s)
+    XGBoost + histórico (Brier) [11/20] Brier 0.01804 (28s)
+    XGBoost + histórico (Brier) [12/20] Brier 0.01802 (19s)
+    XGBoost + histórico (Brier) [13/20] Brier 0.01805 (19s)
+    XGBoost + histórico (Brier) [14/20] Brier 0.01801 (20s)
+    XGBoost + histórico (Brier) [15/20] Brier 0.01816 (21s)
+    XGBoost + histórico (Brier) [16/20] Brier 0.01814 (25s)
+    XGBoost + histórico (Brier) [17/20] Brier 0.01807 (23s)
+    XGBoost + histórico (Brier) [18/20] Brier 0.01805 (25s)
+    XGBoost + histórico (Brier) [19/20] Brier 0.01801 (24s)
+    XGBoost + histórico (Brier) [20/20] Brier 0.01805 (16s)
+  XGBoost + histórico (Brier): melhor Brier na validação 0.01801 {'learning_rate': 0.061712127705890685, 'max_depth': 8, 'min_child_weight': 0.5762430141983544, 'subsample': 0.774686955692945, 'colsample_bytree': 0.6072923364097647, 'reg_lambda': 2.256614631775692}
+    XGBoost relativo à UF + histórico (Brier) [1/20] Brier 0.01832 (16s)
+    XGBoost relativo à UF + histórico (Brier) [2/20] Brier 0.01807 (18s)
+    XGBoost relativo à UF + histórico (Brier) [3/20] Brier 0.01806 (17s)
+    XGBoost relativo à UF + histórico (Brier) [4/20] Brier 0.01822 (16s)
+    XGBoost relativo à UF + histórico (Brier) [5/20] Brier 0.01802 (36s)
+    XGBoost relativo à UF + histórico (Brier) [6/20] Brier 0.01844 (15s)
+    XGBoost relativo à UF + histórico (Brier) [7/20] Brier 0.01804 (26s)
+    XGBoost relativo à UF + histórico (Brier) [8/20] Brier 0.01803 (24s)
+    XGBoost relativo à UF + histórico (Brier) [9/20] Brier 0.01819 (12s)
+    XGBoost relativo à UF + histórico (Brier) [10/20] Brier 0.01851 (15s)
+    XGBoost relativo à UF + histórico (Brier) [11/20] Brier 0.01806 (24s)
+    XGBoost relativo à UF + histórico (Brier) [12/20] Brier 0.01832 (16s)
+    XGBoost relativo à UF + histórico (Brier) [13/20] Brier 0.01806 (23s)
+    XGBoost relativo à UF + histórico (Brier) [14/20] Brier 0.01840 (16s)
+    XGBoost relativo à UF + histórico (Brier) [15/20] Brier 0.01828 (13s)
+    XGBoost relativo à UF + histórico (Brier) [16/20] Brier 0.01797 (20s)
+    XGBoost relativo à UF + histórico (Brier) [17/20] Brier 0.01807 (38s)
+    XGBoost relativo à UF + histórico (Brier) [18/20] Brier 0.01802 (27s)
+    XGBoost relativo à UF + histórico (Brier) [19/20] Brier 0.01804 (21s)
+    XGBoost relativo à UF + histórico (Brier) [20/20] Brier 0.01818 (22s)
+  XGBoost relativo à UF + histórico (Brier): melhor Brier na validação 0.01797 {'learning_rate': 0.07590099991488934, 'max_depth': 3, 'min_child_weight': 18.48274290632302, 'subsample': 0.865725416130955, 'colsample_bytree': 0.7031934307200353, 'reg_lambda': 10.071159979090579}
+    XGBoost + SCR ampliado (Brier) [1/20] Brier 0.01798 (29s)
+    XGBoost + SCR ampliado (Brier) [2/20] Brier 0.01802 (32s)
+    XGBoost + SCR ampliado (Brier) [3/20] Brier 0.01799 (26s)
+    XGBoost + SCR ampliado (Brier) [4/20] Brier 0.01791 (21s)
+    XGBoost + SCR ampliado (Brier) [5/20] Brier 0.01794 (81s)
+    XGBoost + SCR ampliado (Brier) [6/20] Brier 0.01797 (43s)
+    XGBoost + SCR ampliado (Brier) [7/20] Brier 0.01791 (54s)
+    XGBoost + SCR ampliado (Brier) [8/20] Brier 0.01796 (69s)
+    XGBoost + SCR ampliado (Brier) [9/20] Brier 0.01806 (25s)
+    XGBoost + SCR ampliado (Brier) [10/20] Brier 0.01814 (21s)
+    XGBoost + SCR ampliado (Brier) [11/20] Brier 0.01795 (39s)
+    XGBoost + SCR ampliado (Brier) [12/20] Brier 0.01792 (18s)
+    XGBoost + SCR ampliado (Brier) [13/20] Brier 0.01796 (30s)
+    XGBoost + SCR ampliado (Brier) [14/20] Brier 0.01803 (25s)
+    XGBoost + SCR ampliado (Brier) [15/20] Brier 0.01801 (28s)
+    XGBoost + SCR ampliado (Brier) [16/20] Brier 0.01796 (39s)
+    XGBoost + SCR ampliado (Brier) [17/20] Brier 0.01793 (47s)
+    XGBoost + SCR ampliado (Brier) [18/20] Brier 0.01797 (31s)
+    XGBoost + SCR ampliado (Brier) [19/20] Brier 0.01796 (36s)
+    XGBoost + SCR ampliado (Brier) [20/20] Brier 0.01816 (18s)
+  XGBoost + SCR ampliado (Brier): melhor Brier na validação 0.01791 {'learning_rate': 0.027292464464820716, 'max_depth': 9, 'min_child_weight': 11.616302442761272, 'subsample': 0.8979048623631268, 'colsample_bytree': 0.983754866217105, 'reg_lambda': 1.6632662484772907}
+    XGBoost relativo à UF + SCR ampliado (Brier) [1/20] Brier 0.01804 (23s)
+    XGBoost relativo à UF + SCR ampliado (Brier) [2/20] Brier 0.01797 (22s)
+    XGBoost relativo à UF + SCR ampliado (Brier) [3/20] Brier 0.01797 (25s)
+    XGBoost relativo à UF + SCR ampliado (Brier) [4/20] Brier 0.01844 (19s)
+    XGBoost relativo à UF + SCR ampliado (Brier) [5/20] Brier 0.01790 (45s)
+    XGBoost relativo à UF + SCR ampliado (Brier) [6/20] Brier 0.01810 (18s)
+    XGBoost relativo à UF + SCR ampliado (Brier) [7/20] Brier 0.01791 (30s)
+    XGBoost relativo à UF + SCR ampliado (Brier) [8/20] Brier 0.01795 (32s)
+    XGBoost relativo à UF + SCR ampliado (Brier) [9/20] Brier 0.01810 (20s)
+    XGBoost relativo à UF + SCR ampliado (Brier) [10/20] Brier 0.01810 (17s)
+    XGBoost relativo à UF + SCR ampliado (Brier) [11/20] Brier 0.01791 (23s)
+    XGBoost relativo à UF + SCR ampliado (Brier) [12/20] Brier 0.01822 (20s)
+    XGBoost relativo à UF + SCR ampliado (Brier) [13/20] Brier 0.01802 (26s)
+    XGBoost relativo à UF + SCR ampliado (Brier) [14/20] Brier 0.01801 (18s)
+    XGBoost relativo à UF + SCR ampliado (Brier) [15/20] Brier 0.01825 (19s)
+    XGBoost relativo à UF + SCR ampliado (Brier) [16/20] Brier 0.01796 (43s)
+    XGBoost relativo à UF + SCR ampliado (Brier) [17/20] Brier 0.01794 (33s)
+    XGBoost relativo à UF + SCR ampliado (Brier) [18/20] Brier 0.01801 (26s)
+    XGBoost relativo à UF + SCR ampliado (Brier) [19/20] Brier 0.01801 (32s)
+    XGBoost relativo à UF + SCR ampliado (Brier) [20/20] Brier 0.01800 (19s)
+  XGBoost relativo à UF + SCR ampliado (Brier): melhor Brier na validação 0.01790 {'learning_rate': 0.022744374853601437, 'max_depth': 7, 'min_child_weight': 22.60644895794836, 'subsample': 0.8526657596488258, 'colsample_bytree': 0.8790438700426869, 'reg_lambda': 1.8490211283093978}
+    XGBoost + SCR ampliado + Conab (Brier) [1/20] Brier 0.01803 (20s)
+    XGBoost + SCR ampliado + Conab (Brier) [2/20] Brier 0.01799 (22s)
+    XGBoost + SCR ampliado + Conab (Brier) [3/20] Brier 0.01797 (20s)
+    XGBoost + SCR ampliado + Conab (Brier) [4/20] Brier 0.01793 (16s)
+    XGBoost + SCR ampliado + Conab (Brier) [5/20] Brier 0.01791 (44s)
+    XGBoost + SCR ampliado + Conab (Brier) [6/20] Brier 0.01799 (18s)
+    XGBoost + SCR ampliado + Conab (Brier) [7/20] Brier 0.01788 (32s)
+    XGBoost + SCR ampliado + Conab (Brier) [8/20] Brier 0.01787 (30s)
+    XGBoost + SCR ampliado + Conab (Brier) [9/20] Brier 0.01815 (23s)
+    XGBoost + SCR ampliado + Conab (Brier) [10/20] Brier 0.01817 (17s)
+    XGBoost + SCR ampliado + Conab (Brier) [11/20] Brier 0.01790 (30s)
+    XGBoost + SCR ampliado + Conab (Brier) [12/20] Brier 0.01792 (18s)
+    XGBoost + SCR ampliado + Conab (Brier) [13/20] Brier 0.01793 (26s)
+    XGBoost + SCR ampliado + Conab (Brier) [14/20] Brier 0.01801 (21s)
+    XGBoost + SCR ampliado + Conab (Brier) [15/20] Brier 0.01800 (21s)
+    XGBoost + SCR ampliado + Conab (Brier) [16/20] Brier 0.01792 (45s)
+    XGBoost + SCR ampliado + Conab (Brier) [17/20] Brier 0.01787 (35s)
+    XGBoost + SCR ampliado + Conab (Brier) [18/20] Brier 0.01794 (27s)
+    XGBoost + SCR ampliado + Conab (Brier) [19/20] Brier 0.01789 (31s)
+    XGBoost + SCR ampliado + Conab (Brier) [20/20] Brier 0.01809 (21s)
+  XGBoost + SCR ampliado + Conab (Brier): melhor Brier na validação 0.01787 {'learning_rate': 0.04218955397375325, 'max_depth': 3, 'min_child_weight': 1.1965000538752375, 'subsample': 0.6519686021341886, 'colsample_bytree': 0.7378524631129668, 'reg_lambda': 1.1547617609249552}
+  Regressão Logística: reaproveitado do checkpoint
+  Random Forest: reaproveitado do checkpoint
+  XGBoost: reaproveitado do checkpoint
+  XGBoost relativo à UF: reaproveitado do checkpoint
+  XGBoost + histórico do perfil: reaproveitado do checkpoint
+  XGBoost relativo à UF + histórico: reaproveitado do checkpoint
+  XGBoost relativo à UF + histórico + recência: reaproveitado do checkpoint
+  XGBoost + SCR ampliado: reaproveitado do checkpoint
+  XGBoost relativo à UF + SCR ampliado: reaproveitado do checkpoint
+  XGBoost + SCR ampliado + preços: reaproveitado do checkpoint
+  XGBoost + SCR ampliado + Conab: reaproveitado do checkpoint
+  XGBoost + histórico (Brier): benefício val2 0.00299 | F1 val1 0.1408 | val2 com a fatia 0.1789 (fatia 2.5%) | teste AUC 0.8011 Brier 0.0544 F1 0.2210 [platt, limiar 7.37%] (62s)
+  XGBoost relativo à UF + histórico (Brier): benefício val2 0.00285 | F1 val1 0.1451 | val2 com a fatia 0.1982 (fatia 3.9%) | teste AUC 0.7917 Brier 0.0543 F1 0.2596 [isotonica, limiar 7.78%] (73s)
+  XGBoost + SCR ampliado (Brier): benefício val2 0.00311 | F1 val1 0.1412 | val2 com a fatia 0.1882 (fatia 2.7%) | teste AUC 0.8066 Brier 0.0530 F1 0.2263 [platt, limiar 7.27%] (120s)
+  XGBoost relativo à UF + SCR ampliado (Brier): benefício val2 0.00289 | F1 val1 0.1330 | val2 com a fatia 0.1839 (fatia 2.3%) | teste AUC 0.7972 Brier 0.0534 F1 0.1959 [platt, limiar 7.48%] (139s)
+  XGBoost + SCR ampliado + Conab (Brier): benefício val2 0.00332 | F1 val1 0.1481 | val2 com a fatia 0.2056 (fatia 4.4%) | teste AUC 0.8073 Brier 0.0534 F1 0.2705 [isotonica, limiar 7.69%] (133s)
+
+Validação 1 (perfis jan/2024–jun/2024) e validação 2 (perfis jul/2024–dez/2024)
+                                                   auc     brier        f1 auc_janela2 brier_janela2 f1_janela2 f1_transferido  f1_medio limiar_janela2_pct inad_real_janela2_pct fatia_pct f1_fatia_janela2 precisao_fatia_janela2 recall_fatia_janela2 beneficio_medio_janela2 brier_transferido_janela2
+Regressão Logística                           0.694106  0.018279  0.088605     0.71807      0.027094   0.121631       0.101753  0.105118           6.101602              2.842194  5.070819         0.117502                 0.0917             0.163511                0.000687                  0.027216
+Random Forest                                 0.684407  0.018214  0.111033    0.725678      0.026997   0.147156       0.133696  0.129094           7.820603              2.842194  4.364219         0.142226               0.117541             0.180035                0.001398                  0.027039
+XGBoost                                       0.691254  0.018119  0.119822      0.7289      0.026853   0.150162       0.141425  0.134992           7.540375              2.842194  3.032771         0.138559               0.134303             0.143093                0.001544                  0.026888
+XGBoost relativo à UF                         0.695886  0.018077  0.115649    0.730365      0.026855   0.143749       0.142436  0.129699           6.664586              2.842194  1.928792         0.127165               0.157603             0.106581                0.001556                  0.026976
+XGBoost + histórico do perfil                 0.749335  0.017905  0.141223    0.780856      0.026273    0.19721         0.1838  0.169217           9.323689              2.842194  3.886813         0.195639               0.169628             0.231074                0.002969                   0.02632
+XGBoost relativo à UF + histórico             0.753885  0.017924  0.144893    0.780845      0.026275   0.195447       0.179973   0.17017          10.379607              2.842194  3.110818          0.19195               0.183795             0.200862                0.002631                  0.026405
+XGBoost relativo à UF + histórico + recência  0.748966  0.017902  0.146885    0.781304      0.026232   0.194076       0.181747  0.170481           8.773068              2.842194  3.209122          0.18822               0.177633             0.200149                0.002802                  0.026322
+XGBoost + SCR ampliado                        0.766953  0.017877  0.138681    0.786729      0.026112   0.199804       0.180677  0.169243             9.6076              2.842194  3.464344         0.196758               0.179168             0.218178                0.003135                  0.026133
+XGBoost relativo à UF + SCR ampliado          0.761004  0.017948   0.12707    0.784247      0.026219   0.196885       0.160575  0.161977           8.532153              2.842194  5.245604         0.196369               0.151427             0.279247                0.002864                    0.0263
+XGBoost + SCR ampliado + preços               0.766266  0.017857   0.13853    0.786523      0.026058   0.200351       0.177991   0.16944          10.708424              2.842194  4.474909         0.199618               0.163365             0.256549                0.003266                  0.026125
+XGBoost + SCR ampliado + Conab                0.765321  0.017976  0.132881    0.786391      0.026065   0.199118       0.174899  0.165999          10.631631              2.842194   4.74019         0.198702               0.158993              0.26485                0.003205                  0.026115
+XGBoost + histórico (Brier)                   0.747186  0.017928  0.140764    0.780959      0.026202   0.192157       0.187979   0.16646           9.978326              2.842194  2.460885         0.178922               0.193659             0.166269                0.002994                  0.026272
+XGBoost relativo à UF + histórico (Brier)     0.760308  0.017888  0.145063    0.775564      0.026183   0.200004       0.186687  0.172534          10.577705              2.842194  3.929441         0.198209                0.17085             0.236002                0.002848                  0.026535
+XGBoost + SCR ampliado (Brier)                0.761068  0.017847  0.141232    0.783833      0.026105   0.197367       0.182732  0.169299           8.997505              2.842194  2.718624          0.18823                0.19279             0.183881                0.003108                  0.026133
+XGBoost relativo à UF + SCR ampliado (Brier)  0.759864  0.017884  0.133049    0.785732      0.026132   0.199673       0.175367  0.166361            8.79372              2.842194   2.33365         0.183899               0.204868             0.166824                0.002889                  0.026288
+XGBoost + SCR ampliado + Conab (Brier)        0.772407  0.017811  0.148129    0.787946      0.026022   0.208414       0.176452  0.178271          10.903029              2.842194   4.38788         0.205599               0.169543             0.261133                0.003325                  0.026111
+
+Teste fora do tempo (perfis a partir de 2025-01)
+                                                   auc      gini        ks     brier brier_bruto  log_loss  precisao    recall        f1  fatia_pct limiar_pct f1_limiar_fixo pct_carteira_sinalizada inad_media_real_pct inad_media_prevista_pct inad_prevista_bruta_pct calibracao    auc_PF    auc_PJ auc_Cooperativas auc_Custeio     auprc h_measure       mcc beneficio_medio brier_skill brier_confiabilidade brier_resolucao calibracao_intercepto calibracao_inclinacao       ece  auprc_PF  auprc_PJ
+Referência: inadimplência atual da UF         0.645376  0.290751  0.203457  0.057619    0.057619  0.230575  0.110871  0.446824  0.177659  25.033678   4.703586       0.121472                24.99306            6.201554                3.880617                3.880617     nenhum  0.633205  0.683548          0.63038    0.647045  0.113628  0.008977  0.116929        0.004918    0.009466             0.000603        0.000993              0.504738              0.848067  0.023209  0.126987  0.024151
+Regressão Logística                           0.741636  0.483272  0.358381  0.056209    0.063632   0.21427  0.211224  0.172211  0.189733   5.070819   7.636757       0.194027                5.056136            6.201554                 4.42576                6.029649  isotonica  0.697314  0.780809         0.678644    0.722178  0.138417  0.019421  0.142765        0.008574    0.033702             0.000711        0.002423              0.368279              1.148227  0.018711  0.142313  0.044761
+Random Forest                                 0.701576  0.403152  0.271381  0.057171    0.057849   0.22555  0.276236  0.194215  0.228076   4.364219   9.093679        0.19432                4.360174            6.201554                3.724675                2.365068  isotonica  0.647023  0.754047         0.580041    0.652245  0.131343  0.020225  0.189647        0.007895    0.017173             0.001169        0.002099              0.551537              0.960431  0.026647  0.134454  0.034429
+XGBoost                                       0.745771  0.491543  0.353797  0.056741    0.058511  0.221026  0.281869  0.136623   0.18404   3.032771   9.611188       0.227728                3.005914            6.201554                3.263453                1.749631  isotonica  0.695148   0.78696         0.679121    0.727749  0.171067  0.032893  0.160472        0.006994    0.024558             0.001785        0.002738               0.69176              1.318218  0.031504  0.173957  0.058868
+XGBoost relativo à UF                          0.75951  0.519021  0.368402   0.05465    0.054609   0.20608  0.362787   0.11207  0.171241   1.928792  33.890287       0.221633                1.915753            6.201554                6.101005                4.542725  isotonica  0.713565  0.821003         0.692416    0.740045  0.182887  0.038146  0.174284        0.012741    0.060501             0.000046        0.003238              0.019222              0.895418  0.005319  0.186094   0.07255
+XGBoost + histórico do perfil                 0.801587  0.603174  0.437889  0.054575     0.05528  0.202386  0.335868  0.209424  0.257986   3.886813  14.715271       0.278008                3.866855            6.201554                4.194904                3.001356  isotonica  0.759108  0.906979         0.738581    0.767967   0.21829  0.056733  0.227725        0.013121    0.061803             0.001522        0.004935              0.434259              1.329184  0.022777  0.220235  0.181245
+XGBoost relativo à UF + histórico             0.781761  0.563523  0.414801  0.054597    0.053439  0.203226  0.343676  0.170934  0.228313   3.110818  16.159743       0.214051                3.084474            6.201554                6.662662                6.701257  isotonica  0.735749  0.906821         0.723497    0.751611   0.16765  0.033894  0.208339        0.011959    0.061425              0.00031        0.003701             -0.080133              1.323978     0.013   0.16915   0.12757
+XGBoost relativo à UF + histórico + recência  0.786082  0.572163  0.412464  0.053897    0.053481  0.200979  0.336282  0.173481  0.228885   3.209122  21.088967       0.215394                3.199256            6.201554                6.644221                6.658187  isotonica  0.740814  0.910304         0.721806    0.751985  0.198194  0.046924  0.206733        0.013605    0.073447             0.000376        0.004201             -0.077363              1.344914  0.014192  0.199456  0.164496
+XGBoost + SCR ampliado                        0.807961  0.615922  0.450725  0.053189      0.0535  0.195212  0.340697  0.189279  0.243357   3.464344  18.051519       0.257115                3.445365            6.201554                5.204411                3.971728  isotonica  0.766323  0.907392          0.75242    0.768875  0.230393  0.060399  0.218268        0.016032    0.085624             0.000681        0.005095              0.197187              1.297954  0.012083  0.230513  0.220553
+XGBoost relativo à UF + SCR ampliado          0.796763  0.593527  0.431853  0.053408    0.053814   0.19719  0.296218  0.249342  0.270766   5.245604  18.624756       0.212296                5.220162            6.201554                6.552338                7.401297  isotonica  0.753138  0.917562         0.738647    0.757558  0.199734   0.04767  0.227891        0.015026    0.081861             0.000157        0.004534             -0.062947              1.161115  0.008812  0.200889  0.161486
+XGBoost + SCR ampliado + preços                0.80553  0.611059   0.44727  0.053262     0.05345  0.195861  0.313845  0.225522  0.262452   4.474909  17.673986       0.242371                4.456299            6.201554                 5.14899                4.101231  isotonica  0.762993  0.911733         0.748852    0.766515   0.22163  0.056825  0.225499        0.015987    0.084375             0.000721        0.005005              0.209482               1.28005  0.012647  0.221323  0.219928
+XGBoost + SCR ampliado + Conab                0.809997  0.619993  0.455608    0.0528    0.052999  0.194266  0.320307  0.243957  0.276967    4.74019  15.701685       0.241358                 4.72333            6.201554                4.941737                4.260164      platt  0.768652  0.914996         0.753152    0.772444  0.248978  0.065232  0.238447         0.01622    0.092307             0.000676        0.005165              0.258108               1.22598  0.014119  0.249378  0.236186
+XGBoost + histórico (Brier)                   0.801133  0.602266  0.438436  0.054411    0.055262  0.201905   0.39004  0.154197  0.221018   2.460885  14.908056       0.291285                2.451705            6.201554                4.153243                 2.94783      platt  0.758515  0.906237         0.739108     0.76857  0.234221  0.060725  0.215617        0.013294    0.064608             0.001573         0.00481               0.44448              1.384873  0.022811  0.236553  0.199655
+XGBoost relativo à UF + histórico (Brier)     0.791706  0.583411  0.423291  0.054265    0.053245  0.202848  0.335233   0.21186  0.259636   3.929441  15.871497       0.228725                 3.91925            6.201554                6.432353                6.573409  isotonica  0.747563  0.910268         0.725347    0.760675  0.214285  0.055296  0.228793        0.015108    0.067119              0.00003        0.004335             -0.044494              0.841453  0.004723  0.215978  0.174246
+XGBoost + SCR ampliado (Brier)                0.806605  0.613209  0.448589  0.052969     0.05374  0.194941  0.372567  0.162479  0.226277   2.718624  19.909457        0.26998                2.704543            6.201554                5.156371                3.909946      platt  0.764757  0.904614         0.751886    0.767819  0.235888  0.060732  0.214677        0.016145    0.089411             0.000508        0.005058              0.210809              1.180857  0.012323  0.237438  0.194796
+XGBoost relativo à UF + SCR ampliado (Brier)   0.79722  0.594439  0.433558  0.053361    0.053668  0.197219  0.359858  0.134628  0.195948    2.33365  36.131412       0.233736                2.320085            6.201554                7.541872                7.284921      platt  0.753706  0.915068         0.739528    0.757526  0.224869  0.052872  0.190321        0.015644    0.082672             0.000428        0.004672             -0.237038              0.957447  0.013403  0.224802  0.228648
+XGBoost + SCR ampliado + Conab (Brier)        0.807335  0.614671  0.453273  0.053382    0.053342  0.196646  0.327292  0.230488   0.27049    4.38788  14.738082       0.253933                4.367292            6.201554                5.039538                4.377565  isotonica  0.767943  0.910858         0.745681    0.772773  0.226107  0.060259  0.235047        0.015779    0.082299             0.000577        0.005029              0.238458              1.119381  0.012915  0.233756  0.160797
+
+vencedores na validação: {'f1_auc': 'XGBoost + SCR ampliado + Conab (Brier)', 'f1': 'XGBoost + SCR ampliado + Conab (Brier)', 'beneficio': 'XGBoost + SCR ampliado + Conab (Brier)'}
+vencedor do benefício líquido por alarmes aceitos para cada acerto: {'3': 'XGBoost + SCR ampliado', '5': 'XGBoost + SCR ampliado + preços', '10': 'XGBoost + SCR ampliado + Conab (Brier)', '20': 'XGBoost + SCR ampliado + Conab (Brier)'}
+intervalos de 95% (132s):
+                                        auc_baixo  auc_alto  auc_dif_baixo  auc_dif_alto  brier_baixo  brier_alto  brier_dif_baixo  brier_dif_alto  f1_baixo  f1_alto  f1_dif_baixo  f1_dif_alto  beneficio_medio_baixo  beneficio_medio_alto  beneficio_medio_dif_baixo  beneficio_medio_dif_alto
+XGBoost + SCR ampliado + Conab (Brier)     0.8001    0.8143         0.0000        0.0000       0.0502      0.0568           0.0000          0.0000    0.2608   0.2749        0.0000       0.0000                 0.0142                0.0177                     0.0000                    0.0000
+XGBoost + SCR ampliado                     0.8006    0.8149        -0.0003        0.0017       0.0501      0.0565          -0.0003         -0.0001    0.2380   0.2509       -0.0305      -0.0182                 0.0144                0.0180                     0.0001                    0.0004
+XGBoost + SCR ampliado (Brier)             0.7990    0.8134        -0.0019        0.0003       0.0498      0.0564          -0.0005         -0.0003    0.2153   0.2322       -0.0517      -0.0377                 0.0145                0.0181                     0.0002                    0.0005
+XGBoost + SCR ampliado + Conab             0.8029    0.8166         0.0017        0.0037       0.0497      0.0562          -0.0007         -0.0005    0.2679   0.2799        0.0014       0.0102                 0.0145                0.0182                     0.0003                    0.0006
+produção (XGBoost + SCR ampliado + Conab (Brier)): calibração platt {'nenhum': 0.059279957890984045, 'platt': 0.059160848511226785, 'isotonica': 0.059186734277345165}; fatia 10.6%; limiar 22.94% (janela 2025-08-31 a 2026-02-28)
+pares_inad_atual_pct         0.4832
+perfil_problematico_pct      0.4057
+calibracao                   0.3428
+perfil_vence_90d_pct         0.3346
+perfil_atraso_15_90_pct      0.2774
+perfil_inad_atual_pct        0.2533
+porte                        0.2161
+uf_finalidade_inad_pct       0.1977
+segmento                     0.1115
+indexador                    0.1083
+valor_medio_operacao_mil     0.0923
+cliente                      0.0858
+uf_atraso_15_90_pct          0.0807
+uf_inad_atual_pct            0.0803
+ocupacao_atividade           0.0777
+prazo_remanescente_anos      0.0737
+submodalidade                0.0629
+ipca_12m                     0.0457
+selic                        0.0425
+origem                       0.0400
+uf                           0.0390
+perfil_cresc_6m_pct          0.0359
+regiao                       0.0354
+perfil_cresc_12m_pct         0.0293
+conab_custo_var_anual_pct    0.0276
+conab_margem_pct             0.0240
+safra_anomalia_pct           0.0228
+dolar_var12m                 0.0206
+mes_alvo                     0.0180
+perfil_inad_var_6m_pp        0.0171
+perfil_inad_var_12m_pp       0.0164
+safra_perda_area_pct         0.0142
+uf_inad_var_6m_pp            0.0132
+perfil_inad_var_3m_pp        0.0113
+safra_var_producao_pct       0.0102
+perfil_inad_var_1m_pp        0.0031
+salvo em C:\Users\guilh\Desktop\Trabalho de IA\agro-credito\agro-credito\modelos; critério ativo: f1_auc (XGBoost + SCR ampliado + Conab (Brier))

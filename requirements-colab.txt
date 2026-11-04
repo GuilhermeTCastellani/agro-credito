@@ -1,0 +1,10 @@
+# Instalado por notebooks/treino_colab.ipynb. O Colab já traz o torch com suporte a GPU.
+pandas>=2.2
+pyarrow>=15
+scikit-learn==1.9.1
+xgboost==3.4.1
+lightgbm>=4.5
+catboost>=1.2.8
+optuna>=4.0
+pytabkit>=1.8
+shap==0.54.1
