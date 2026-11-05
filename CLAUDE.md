@@ -15,14 +15,36 @@ Responda em português do Brasil. **Nunca faça commit nem push sem pedido expl�
 - O teste já foi visto em cinco regras de escolha: não o use para novos ajustes. A medição limpa depende dos perfis a partir de
   mar/2026, cujos alvos começam em set/2026 e ainda não entraram na base.
 - **Colab:** `notebooks/treino_colab.ipynb` chama `src/otimizacao.py` (XGBoost, LightGBM, CatBoost, RealMLP, Random Forest e ensembles).
-  Ainda não rodou no Colab, e o RealMLP nunca foi executado. O progresso fica no Drive. Com o vencedor, retreine localmente, porque o modelo
+  O progresso fica no Drive. Com o vencedor, retreine localmente, porque o modelo
   treinado no Colab pode não abrir no Windows; se vencer RealMLP ou ensemble, o SHAP do dashboard precisará mudar.
-- **Git:** o `.git` ativo está em `C:\Users\guilh` e aponta para outro projeto. Nunca faça commit ou push por ele; use um repositório próprio deste projeto.
+- **Git:** esta pasta tem repositório próprio e privado (`GuilhermeTCastellani/agro-credito`). A pasta do usuário tem outro `.git`, de outro projeto: confira com `git rev-parse --show-toplevel` antes de qualquer commit.
 - Este PC tem só 7,4 GB de RAM: feche programas antes de treinar. O treino salva o progresso em `modelos/checkpoint/`.
+
+### Retomada do Colab (parou em 2026-11-05)
+
+Progresso no Drive, em `MyDrive/agro-credito/progresso`. Melhor PR-AUC na validação 2, antes da comparação no teste:
+
+| Modelo | Tentativas | PR-AUC | Observação |
+|---|---|---|---|
+| LightGBM | 50 de 50 | 0,1497 | Previsões finais ainda não geradas |
+| XGBoost | 42 de 50 no último registro | 0,1480 | Retoma por volta da 43 |
+| Random Forest | 50 de 50 | 0,1444 | O "vencedor" dessa rodada não vale: só havia esse modelo |
+| CatBoost | Não começou | — | 1 tentativa no teste curto: 34 s na T4, PR-AUC 0,1423 |
+| RealMLP | Só teste curto | 0,0950 | 1869 s por tentativa; suspeita de não ter usado a T4, ainda sem confirmar |
+
+Para retomar: escolher T4; rodar Configuração, clone, `pip` e a célula do Drive; pular a seção 2; na seção 3, usar
+`MODELOS = ("xgboost", "catboost", "random_forest", "lightgbm")` e `TENTATIVAS = 50`. A primeira linha deve ser `xgboost [43]` ou próxima.
+Sem GPU, a célula original do Drive quebra em `nvidia-smi`: use uma célula equivalente sem ele, com `GPU = False`, e combine com o usuário o que rodar.
+
+Depois da tabela da seção 4: confirmar se o RealMLP usa a GPU e testar menos linhas e épocas (ex.: 100 mil e 64), mantendo as 50 tentativas se couber. Colocar
+as buscas caras depois das que usam GPU, pois o Colab gratuito caiu várias vezes. Depois, retreinar o vencedor localmente e atualizar README e dashboard.
+
+Correções pendentes no notebook (exigem novo commit e push, só com pedido do usuário): não quebrar sem GPU, colocar os modelos com GPU primeiro,
+silenciar os avisos do LightGBM e do XGBoost.
 
 ### Pontos em aberto
 
-- Confirmar com o professor a combinação de F1 e AUC-ROC.
+- Confirmar com o professor a regra de desempate entre PR-AUC, precisão, recall e F1.
 - Antes de uso comercial, confirmar as licenças do Banco Mundial e da Conab.
 - Estratégia comercial em debate em `docs/estrategia-comercial.md`.
 

@@ -178,3 +178,158 @@ class ModeloRisco:
             # o patamar regional entra como offset fora das árvores; sua contribuição é o desvio da média
             out["uf_inad_atual_pct"] = out.get("uf_inad_atual_pct", 0) + (offset_uf(df) - self.offset_medio)
         return out
+
+
+# ------------------------------------------------------------------ ensemble treinado no Colab
+class Componente:
+    """Um modelo do ensemble com o seu pré-processamento.
+
+    Salvo no formato próprio de cada biblioteca, e não em pickle do modelo, para abrir no Windows mesmo treinado no
+    Linux do Colab. O pré-processamento e o Random Forest são objetos do scikit-learn, salvos com joblib.
+    """
+
+    ARQUIVOS = {"xgboost": "modelo.ubj", "lightgbm": "modelo.txt", "catboost": "modelo.cbm", "random_forest": "modelo.joblib"}
+
+    def __init__(self, tipo: str, pre, modelo, numericas: list[str]):
+        self.tipo, self.pre, self.modelo = tipo, pre, modelo
+        self.numericas = list(numericas)
+        self.features = CATEGORICAS + self.numericas
+        self._explicador = None
+
+    def _matriz(self, df):
+        return self.pre.transform(df[self.features]).astype(np.float32)
+
+    def prever(self, df) -> np.ndarray:
+        X = self._matriz(df)
+        if self.tipo == "xgboost":
+            p = self.modelo.inplace_predict(X)
+        elif self.tipo == "lightgbm":
+            p = self.modelo.predict(X)
+        elif self.tipo == "catboost":
+            p = self.modelo.predict_proba(X)[:, 1]
+        else:
+            p = self.modelo.predict(X)
+        return np.clip(np.asarray(p, dtype=float), 0, 1)
+
+    __call__ = prever
+
+    def contribuicoes(self, df) -> pd.DataFrame:
+        """SHAP em log-chance por variável original. No Random Forest, a escala de probabilidade é convertida pela derivada
+        do logit no ponto previsto, uma aproximação."""
+        import shap
+        if self._explicador is None:
+            self._explicador = shap.TreeExplainer(self.modelo)
+        sv = np.asarray(self._explicador.shap_values(self._matriz(df)))
+        if sv.ndim == 3:  # classificadores que devolvem uma matriz por classe
+            sv = sv[..., -1] if sv.shape[-1] == 2 else sv[-1]
+        sv = np.atleast_2d(sv)
+        if self.tipo == "random_forest":
+            p = np.clip(self.prever(df), 1e-4, 1 - 1e-4)
+            sv = sv / (p * (1 - p))[:, None]
+        origem = mapa_colunas(self.pre, self.numericas)
+        return pd.DataFrame(sv, columns=origem).T.groupby(level=0, sort=False).sum().T
+
+    def salvar(self, pasta) -> None:
+        import joblib
+        from pathlib import Path
+        pasta = Path(pasta)
+        pasta.mkdir(parents=True, exist_ok=True)
+        arquivo = pasta / self.ARQUIVOS[self.tipo]
+        if self.tipo in ("xgboost", "lightgbm", "catboost"):
+            self.modelo.save_model(str(arquivo))
+        else:
+            joblib.dump(self.modelo, arquivo, compress=3)
+        joblib.dump({"tipo": self.tipo, "pre": self.pre, "numericas": self.numericas}, pasta / "pre.joblib", compress=3)
+
+    @classmethod
+    def carregar(cls, pasta) -> "Componente":
+        import joblib
+        from pathlib import Path
+        pasta = Path(pasta)
+        info = joblib.load(pasta / "pre.joblib")  # arquivo gerado por este projeto
+        tipo, arquivo = info["tipo"], pasta / cls.ARQUIVOS[info["tipo"]]
+        if tipo == "xgboost":
+            import xgboost as xgb
+            modelo = xgb.Booster()
+            modelo.load_model(str(arquivo))
+            modelo.set_param({"device": "cpu"})
+        elif tipo == "lightgbm":
+            import lightgbm as lgb
+            modelo = lgb.Booster(model_file=str(arquivo))
+        elif tipo == "catboost":
+            from catboost import CatBoostClassifier
+            modelo = CatBoostClassifier()
+            modelo.load_model(str(arquivo))
+        else:
+            modelo = joblib.load(arquivo)
+        return cls(tipo, info["pre"], modelo, info["numericas"])
+
+
+class ModeloEnsemble:
+    """Empilhamento: regressão logística sobre as log-chances dos componentes, seguida do calibrador.
+
+    Tem a mesma interface de ModeloRisco usada pelo dashboard: prever(), prever_bruto(), explicar(), features, limiar,
+    fatia_pct, valor_base e escala_log_chance.
+    """
+
+    tipo = "ensemble"
+    escala_log_chance = True
+
+    def __init__(self, componentes: dict, coeficientes: dict, intercepto: float):
+        self.componentes = componentes
+        self.coeficientes = dict(coeficientes)
+        self.intercepto = float(intercepto)
+        self.features = list(next(iter(componentes.values())).features)
+        self.calibrador: Calibrador | None = None
+        self.limiar: float | None = None
+        self.fatia_pct: float | None = None
+        self.valor_base = 0.0
+        self.erro_aditividade = None
+
+    def prever_bruto(self, df) -> np.ndarray:
+        margem = self.intercepto + sum(c * logit(self.componentes[n].prever(df)) for n, c in self.coeficientes.items())
+        return 1 / (1 + np.exp(-margem))
+
+    def prever(self, df) -> np.ndarray:
+        p = self.prever_bruto(df)
+        return p if self.calibrador is None else self.calibrador.transform(p)
+
+    def _contribuicoes(self, df) -> pd.DataFrame:
+        partes = [c * self.componentes[n].contribuicoes(df) for n, c in self.coeficientes.items()]
+        return pd.concat(partes, axis=1).T.groupby(level=0, sort=False).sum().T
+
+    def explicar(self, df) -> pd.DataFrame:
+        out = self._contribuicoes(df)
+        if self.calibrador is not None and self.calibrador.metodo != "nenhum":
+            bruto = self.prever_bruto(df)
+            out["calibracao"] = logit(self.calibrador.transform(bruto)) - logit(bruto)
+        return out
+
+    def preparar_explicador(self, amostra) -> None:
+        """Valor de partida da explicação: valor_base + soma das contribuições = log-chance antes da calibração."""
+        resid = logit(self.prever_bruto(amostra)) - self._contribuicoes(amostra).sum(axis=1).to_numpy()
+        self.valor_base = float(np.median(resid))
+        self.erro_aditividade = float(np.quantile(np.abs(resid - self.valor_base), 0.95))
+
+    def salvar(self, pasta, componentes: bool = True) -> None:
+        """Com componentes=False, grava só o resumo do ensemble, quando os componentes já estão salvos em `pasta`."""
+        import joblib
+        from pathlib import Path
+        pasta = Path(pasta)
+        if componentes:
+            for nome, comp in self.componentes.items():
+                comp.salvar(pasta / nome)
+        joblib.dump({"coeficientes": self.coeficientes, "intercepto": self.intercepto, "calibrador": self.calibrador,
+                     "limiar": self.limiar, "fatia_pct": self.fatia_pct, "valor_base": self.valor_base,
+                     "erro_aditividade": self.erro_aditividade}, pasta / "ensemble.joblib", compress=3)
+
+    @classmethod
+    def carregar(cls, pasta) -> "ModeloEnsemble":
+        import joblib
+        from pathlib import Path
+        pasta = Path(pasta)
+        info = joblib.load(pasta / "ensemble.joblib")  # arquivo gerado por este projeto
+        m = cls({n: Componente.carregar(pasta / n) for n in info["coeficientes"]}, info["coeficientes"], info["intercepto"])
+        for chave in ("calibrador", "limiar", "fatia_pct", "valor_base", "erro_aditividade"):
+            setattr(m, chave, info[chave])
+        return m

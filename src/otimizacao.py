@@ -22,10 +22,13 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score
 
-from modelo import CATEGORICAS, CUSTOS, NUMERICAS_TODAS, PERFIL, PERFIL_AMPLIADO, Calibrador, logit, preprocessador
+from modelo import (CATEGORICAS, CUSTOS, NUMERICAS_TODAS, PERFIL, PERFIL_AMPLIADO, Calibrador, Componente, ModeloEnsemble,
+                    logit, preprocessador)
 from treino import (FIM_TREINO, FIM_TREINO_VAL, FIM_TREINO_VAL2, FIM_VAL, FIM_VAL2, INI_TESTE, INI_VAL, INI_VAL2, SEED,
                     ajustar_limiar, escolher_calibrador, expandir, fatia_do_limiar, limiar_da_fatia, metricas,
                     metricas_extras, metricas_sinal, sinalizar_por_fatia)
+
+MODELOS_ENSEMBLE = ("xgboost", "catboost", "random_forest", "lightgbm")
 
 NUMERICAS = NUMERICAS_TODAS + PERFIL + PERFIL_AMPLIADO + CUSTOS
 FEATURES = CATEGORICAS + NUMERICAS
@@ -130,7 +133,7 @@ def _separar(d: pd.DataFrame):
 
 
 def treinar(modelo: str, params: dict, d: pd.DataFrame, gpu: bool = False):
-    """Treina e devolve a função que prevê a probabilidade de um DataFrame."""
+    """Treina e devolve um objeto chamável que prevê a probabilidade de um DataFrame (Componente, nas árvores)."""
     pre = preprocessador(NUMERICAS, escalar=modelo == "realmlp").fit(d[FEATURES])
     a, b = _separar(d)
     if modelo == "xgboost":
@@ -140,7 +143,7 @@ def treinar(modelo: str, params: dict, d: pd.DataFrame, gpu: bool = False):
         m.fit(_matriz(pre, a), a["alvo_inad"], sample_weight=a["peso"], eval_set=[(_matriz(pre, b), b["alvo_inad"])],
               sample_weight_eval_set=[b["peso"]], verbose=False)
         final = xgb.XGBRegressor(n_estimators=int(m.best_iteration) + 1, **comum).fit(_matriz(pre, d), d["alvo_inad"], sample_weight=d["peso"])
-        return lambda x: np.clip(final.get_booster().inplace_predict(_matriz(pre, x)), 0, 1)
+        return Componente("xgboost", pre, final.get_booster(), NUMERICAS)
     if modelo == "lightgbm":
         import lightgbm as lgb
         comum = dict(objective="cross_entropy", random_state=SEED, n_jobs=-1, verbose=-1, **params)
@@ -148,7 +151,7 @@ def treinar(modelo: str, params: dict, d: pd.DataFrame, gpu: bool = False):
         m.fit(_matriz(pre, a), a["alvo_inad"], sample_weight=a["peso"], eval_set=[(_matriz(pre, b), b["alvo_inad"])],
               eval_sample_weight=[b["peso"]], eval_metric="cross_entropy", callbacks=[lgb.early_stopping(PARADA, verbose=False)])
         final = lgb.LGBMRegressor(n_estimators=max(1, int(m.best_iteration_)), **comum).fit(_matriz(pre, d), d["alvo_inad"], sample_weight=d["peso"])
-        return lambda x: np.clip(final.predict(_matriz(pre, x)), 0, 1)
+        return Componente("lightgbm", pre, final.booster_, NUMERICAS)
     if modelo == "catboost":
         from catboost import CatBoostClassifier, Pool
         comum = dict(loss_function="CrossEntropy", boosting_type="Plain", bootstrap_type="Bayesian", depth=6, random_seed=SEED, verbose=0,
@@ -157,11 +160,11 @@ def treinar(modelo: str, params: dict, d: pd.DataFrame, gpu: bool = False):
         m.fit(Pool(_matriz(pre, a), a["alvo_inad"], weight=a["peso"]), eval_set=Pool(_matriz(pre, b), b["alvo_inad"], weight=b["peso"]))
         final = CatBoostClassifier(iterations=max(1, int(m.get_best_iteration()) + 1), **comum)
         final.fit(Pool(_matriz(pre, d), d["alvo_inad"], weight=d["peso"]))
-        return lambda x: final.predict_proba(_matriz(pre, x))[:, 1]
+        return Componente("catboost", pre, final, NUMERICAS)
     if modelo == "random_forest":
         s = d.sample(min(AMOSTRA_RF, len(d)), random_state=SEED)
         final = RandomForestRegressor(n_jobs=-1, random_state=SEED, **params).fit(_matriz(pre, s), s["alvo_inad"], sample_weight=s["peso"])
-        return lambda x: np.clip(final.predict(_matriz(pre, x)), 0, 1)
+        return Componente("random_forest", pre, final, NUMERICAS)
     if modelo == "realmlp":
         from pytabkit import RealMLP_TD_Classifier
         s, y = amostra_por_exposicao(d, min(AMOSTRA_REALMLP, 2 * len(d)))
@@ -331,3 +334,68 @@ def rodar_tudo(caminho_base, pasta, modelos=MODELOS_BUSCA, n_tentativas: int = 5
         previsoes = {**previsoes, **comb["previsoes"]}
         extras |= {"pesos_guloso": comb["pesos_guloso"], "coeficientes_empilhado": comb["coeficientes_empilhado"]}
     return comparar(previsoes, janelas, pasta, extras)
+
+
+# ------------------------------------------------------------------ produção do ensemble empilhado
+def coeficientes_empilhamento(previsoes: dict, janelas: dict, nomes=MODELOS_ENSEMBLE) -> tuple[dict, float]:
+    """Os mesmos pesos do ensemble avaliado no teste: regressão logística ajustada na validação 2."""
+    y2, w2 = _partes(janelas["val2"])
+    x2 = np.column_stack([logit(previsoes[n]["val2"]) for n in nomes])
+    alvo, peso = expandir(y2, w2)
+    ok = peso > 0
+    pilha = LogisticRegression(C=1.0, max_iter=2000).fit(np.vstack([x2, x2])[ok], alvo[ok], sample_weight=peso[ok])
+    return dict(zip(nomes, pilha.coef_[0].astype(float).tolist())), float(pilha.intercept_[0])
+
+
+def treinar_producao(caminho_base, caminho_atual, pasta, gpu: bool = False, nomes=MODELOS_ENSEMBLE) -> dict:
+    """Treina o ensemble final e salva em `pasta`/producao, no mesmo procedimento do treino local:
+
+    calibrador e fatia vêm dos 6 meses mais recentes com alvo conhecido, previstos por modelos treinados 12 meses antes;
+    o threshold é o que gera essa fatia nos perfis do último mês. Cada componente já pronto é salvo e não é refeito.
+    """
+    pasta = Path(pasta)
+    destino = pasta / "producao"
+    janelas = carregar_janelas(caminho_base)
+    buscas = json.loads((pasta / "resultados_optuna.json").read_text(encoding="utf-8"))["buscas"]
+    previsoes = {n: gerar_previsoes(n, buscas[n]["params"], janelas, pasta, gpu) for n in nomes}
+    coef, intercepto = coeficientes_empilhamento(previsoes, janelas, nomes)
+    del janelas
+
+    df = pd.read_parquet(caminho_base)
+    df["peso"] = df["peso"].clip(upper=df["peso"].quantile(0.99))
+    data_max = df["data_base"].max()
+    interno = df[df["data_base"] <= data_max - pd.DateOffset(months=12)].reset_index(drop=True)
+    janela = df[df["data_base"] > data_max - pd.DateOffset(months=6)].reset_index(drop=True)
+
+    def componente(nome, dados, rotulo):
+        caminho = destino / rotulo / nome
+        if (caminho / "pre.joblib").exists():
+            return Componente.carregar(caminho)
+        t0 = time.time()
+        comp = treinar(nome, sugerir(nome, _TrialFixo(buscas[nome]["params"])), dados, gpu)
+        comp.salvar(caminho)
+        tamanho = sum(a.stat().st_size for a in caminho.iterdir()) / 1e6
+        print(f"{rotulo}/{nome}: {time.time() - t0:.0f}s, {tamanho:.0f} MB", flush=True)
+        return comp
+
+    internos = ModeloEnsemble({n: componente(n, interno, "interno") for n in nomes}, coef, intercepto)
+    y, w = _partes(janela)
+    p_jan = internos.prever_bruto(janela)
+    metodo, notas = escolher_calibrador(p_jan, y, w, janela["data_base"])
+    cal = Calibrador(metodo).fit(p_jan, y, w)
+    pc = cal.transform(p_jan)
+    fatia = fatia_do_limiar(pc, w, ajustar_limiar(y, w, pc))
+    del internos, interno
+
+    final = ModeloEnsemble({n: componente(n, df, "final") for n in nomes}, coef, intercepto)
+    atual = pd.read_parquet(caminho_atual)
+    final.calibrador, final.fatia_pct = cal, fatia * 100
+    final.limiar = limiar_da_fatia(final.prever(atual), atual["peso"].to_numpy(), fatia)
+    # o valor de partida da explicação é calculado no PC, onde o SHAP roda; aqui só salva os modelos
+    joblib_info = {"calibracao": metodo, "brier_por_metodo": notas, "fatia_pct": fatia * 100, "limiar_pct": final.limiar * 100,
+                   "janela_de": str(janela["data_base"].min().date()), "janela_ate": str(janela["data_base"].max().date()),
+                   "coeficientes": coef, "intercepto": intercepto}
+    final.salvar(destino / "final", componentes=False)  # cada componente já foi salvo ao terminar o treino dele
+    (destino / "producao.json").write_text(json.dumps(joblib_info, ensure_ascii=False, indent=1), encoding="utf-8")
+    print(f"produção: calibração {metodo}; fatia {fatia * 100:.1f}%; limiar {final.limiar * 100:.2f}%", flush=True)
+    return joblib_info
