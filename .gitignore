@@ -16,3 +16,9 @@ optuna_*.db
 # credenciais
 .env
 *.token
+
+# modelos e resultados do Colab: ficam no Drive e no producao_final.zip, não no repositório
+modelos/ensemble/
+modelos/colab/
+/previsoes_*.npz
+/resultados_optuna.json

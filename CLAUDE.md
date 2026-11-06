@@ -6,41 +6,23 @@ PoC do Trabalho de IA: estima a probabilidade de inadimplência (atraso > 90 dia
 
 Responda em português do Brasil. **Nunca faça commit nem push sem pedido explícito.**
 
-## Estado atual (2026-11-04)
+## Estado atual (2026-11-05)
 
-- Modelo em produção: **XGBoost + SCR ampliado + Conab (Brier)**, vencedor nos três critérios; 46 testes passando.
-- **Orientação mais recente do professor, ainda não implementada (siga sem trocar por conta própria):** otimizar com PR-AUC no Optuna,
-  com cerca de 50 tentativas e hiperparâmetros da literatura (`docs/hiperparametros-literatura.md`); decidir no teste por PR-AUC, precisão,
-  recall e F1; testar ensembles. Rodar no Colab com T4. Ela substitui a anterior (Brier no tuning, F1 e AUC-ROC na escolha), que gerou o modelo atual.
-- O teste já foi visto em cinco regras de escolha: não o use para novos ajustes. A medição limpa depende dos perfis a partir de
-  mar/2026, cujos alvos começam em set/2026 e ainda não entraram na base.
-- **Colab:** `notebooks/treino_colab.ipynb` chama `src/otimizacao.py` (XGBoost, LightGBM, CatBoost, RealMLP, Random Forest e ensembles).
-  O progresso fica no Drive. Com o vencedor, retreine localmente, porque o modelo
-  treinado no Colab pode não abrir no Windows; se vencer RealMLP ou ensemble, o SHAP do dashboard precisará mudar.
-- **Git:** esta pasta tem repositório próprio e privado (`GuilhermeTCastellani/agro-credito`). A pasta do usuário tem outro `.git`, de outro projeto: confira com `git rev-parse --show-toplevel` antes de qualquer commit.
-- Este PC tem só 7,4 GB de RAM: feche programas antes de treinar. O treino salva o progresso em `modelos/checkpoint/`.
-
-### Retomada do Colab (parou em 2026-11-05)
-
-Progresso no Drive, em `MyDrive/agro-credito/progresso`. Melhor PR-AUC na validação 2, antes da comparação no teste:
-
-| Modelo | Tentativas | PR-AUC | Observação |
-|---|---|---|---|
-| LightGBM | 50 de 50 | 0,1497 | Previsões finais ainda não geradas |
-| XGBoost | 42 de 50 no último registro | 0,1480 | Retoma por volta da 43 |
-| Random Forest | 50 de 50 | 0,1444 | O "vencedor" dessa rodada não vale: só havia esse modelo |
-| CatBoost | Não começou | — | 1 tentativa no teste curto: 34 s na T4, PR-AUC 0,1423 |
-| RealMLP | Só teste curto | 0,0950 | 1869 s por tentativa; suspeita de não ter usado a T4, ainda sem confirmar |
-
-Para retomar: escolher T4; rodar Configuração, clone, `pip` e a célula do Drive; pular a seção 2; na seção 3, usar
-`MODELOS = ("xgboost", "catboost", "random_forest", "lightgbm")` e `TENTATIVAS = 50`. A primeira linha deve ser `xgboost [43]` ou próxima.
-Sem GPU, a célula original do Drive quebra em `nvidia-smi`: use uma célula equivalente sem ele, com `GPU = False`, e combine com o usuário o que rodar.
-
-Depois da tabela da seção 4: confirmar se o RealMLP usa a GPU e testar menos linhas e épocas (ex.: 100 mil e 64), mantendo as 50 tentativas se couber. Colocar
-as buscas caras depois das que usam GPU, pois o Colab gratuito caiu várias vezes. Depois, retreinar o vencedor localmente e atualizar README e dashboard.
-
-Correções pendentes no notebook (exigem novo commit e push, só com pedido do usuário): não quebrar sem GPU, colocar os modelos com GPU primeiro,
-silenciar os avisos do LightGBM e do XGBoost.
+- **Modelo em produção:** ensemble empilhado (XGBoost, CatBoost, Random Forest e LightGBM), com buscas do Optuna pela PR-AUC
+  (50 tentativas por modelo) e treino final no Colab Pro (L4). Instalado por `src/montar_ensemble.py` em `modelos/ensemble/final/`;
+  `metadados.json` tem `formato: ensemble` e `src/modelo.py:carregar_modelo` decide qual modelo o dashboard abre.
+- **Teste:** PR-AUC 0,269, precisão 0,402, recall 0,205, F1 0,272, AUC 0,817, Brier 0,0518. A escolha foi feita no teste, por orientação
+  do professor (PR-AUC, precisão, recall e F1); os números são otimistas até virem meses novos do Banco Central.
+- **Produção:** calibração isotônica, fatia 8,9%, limiar 32,26%. Prevê 11,2% de inadimplência para ago/2026, contra 7,2% hoje.
+- **SHAP do ensemble:** soma as explicações dos componentes com os pesos do empilhamento; o Random Forest usa o SHAP aproximado
+  (o exato leva ~1 s por linha). Erro da soma até 0,28 em log-chance (p95).
+- **Voltar ao modelo anterior:** `python src/trocar_criterio.py f1_auc` (o backup está em `modelos/backup_antes_ensemble/`).
+- **Próximo passo:** aba de segmentos críticos no dashboard (perfil e UF × finalidade passando de 5%, 10% ou 20%), com o ensemble.
+  Medição no teste, já feita: perfil ≥ 10% F1 0,67; segmento ≥ 10% F1 0,75 contando segmentos e 0,55 pesando por reais.
+- **Git:** esta pasta tem repositório próprio e privado (`GuilhermeTCastellani/agro-credito`). A pasta do usuário tem outro `.git`, de outro
+  projeto: confira com `git rev-parse --show-toplevel` antes de qualquer commit. Commits e push só com pedido do usuário.
+- Este PC tem só 7,4 GB de RAM: feche programas antes de treinar. O Colab do usuário agora é Pro, numa conta pessoal; o progresso fica em
+  `MyDrive/agro-credito/progresso`, e o secret `GITHUB_TOKEN` precisa existir na conta usada.
 
 ### Pontos em aberto
 

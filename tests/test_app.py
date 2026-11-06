@@ -2,13 +2,14 @@
 import sys
 from pathlib import Path
 
-import joblib
 import numpy as np
 import pandas as pd
 from streamlit.testing.v1 import AppTest
 
 RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ / "src"))
+
+from modelo import carregar_modelo  # noqa: E402
 
 
 def _linha(**kw):
@@ -28,27 +29,29 @@ def _linha(**kw):
 
 
 def test_modelo_prob_valida_e_shap_soma():
-    m = joblib.load(RAIZ / "modelos" / "modelo_final.joblib")
+    m = carregar_modelo(RAIZ)
     x = _linha()
     p = m.prever(x)[0]
     assert 0 < p < 1
     sv = m.explicar(x).iloc[0]
     # SHAP + valor esperado deve reproduzir a log-chance prevista
+    # no ensemble, a parte do Random Forest é aproximada, então a soma fecha só dentro do erro medido na instalação
+    tolerancia = max(1e-3, 2 * getattr(m, "erro_aditividade", 0) or 0) if getattr(m, "tipo", "") == "ensemble" else 1e-3
     if m.escala_log_chance:
-        assert abs((m.valor_base + sv.sum()) - np.log(p / (1 - p))) < 1e-3
+        assert abs((m.valor_base + sv.sum()) - np.log(p / (1 - p))) < tolerancia
     else:
         assert abs((m.valor_base + sv.sum()) - p) < 1e-3
 
 
 def test_modelo_salvo_tem_calibrador_e_limiar():
-    m = joblib.load(RAIZ / "modelos" / "modelo_final.joblib")
+    m = carregar_modelo(RAIZ)
     assert m.calibrador is not None
     assert 0 < m.limiar < 1
     assert 0 < m.fatia_pct < 100
 
 
 def test_regiao_com_mais_inadimplencia_aumenta_risco():
-    m = joblib.load(RAIZ / "modelos" / "modelo_final.joblib")
+    m = carregar_modelo(RAIZ)
     baixo = m.prever(_linha(uf_inad_atual_pct=2.0))[0]
     alto = m.prever(_linha(uf_inad_atual_pct=10.0))[0]
     assert alto > baixo
@@ -57,7 +60,7 @@ def test_regiao_com_mais_inadimplencia_aumenta_risco():
 def test_dashboard_renderiza_sem_erro():
     at = AppTest.from_file(str(RAIZ / "app.py"), default_timeout=120).run()
     assert not at.exception
-    assert len(at.tabs) == 4
+    assert len(at.tabs) == 5
     textos = " ".join(md.value for md in at.markdown)
     assert "Probabilidade de inadimplência" in textos
 
@@ -74,3 +77,14 @@ def test_dashboard_mostra_novas_metricas():
     colunas = [c for df in at.dataframe for c in df.value.columns]
     for nome in ["Precisão", "Recall", "F1", "Brier", "MCC", "Benefício líquido", "Brier Skill", "AUPRC", "H-measure"]:
         assert nome in colunas
+
+
+def test_aba_de_segmentos_mostra_a_lista_e_a_medicao():
+    at = AppTest.from_file(str(RAIZ / "app.py"), default_timeout=180).run()
+    assert not at.exception
+    colunas = [c for df in at.dataframe for c in df.value.columns]
+    for nome in ["Prevista em 6 meses (%)", "Crítico", "F1 repetindo o nível atual"]:
+        assert nome in colunas
+    radio = [r for r in at.radio if r.label == "Limite de inadimplência"][0]
+    radio.set_value(0.2).run()
+    assert not at.exception

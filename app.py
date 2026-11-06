@@ -142,7 +142,8 @@ def score(pd_):
 # ------------------------------------------------------------------ carga
 @st.cache_resource
 def carregar():
-    modelo = joblib.load(RAIZ / "modelos" / "modelo_final.joblib")
+    from modelo import carregar_modelo
+    modelo = carregar_modelo(RAIZ)
     meta = json.loads((RAIZ / "modelos" / "metadados.json").read_text(encoding="utf-8"))
     ctx = json.loads((RAIZ / "dados" / "processados" / "contexto_atual.json").read_text(encoding="utf-8"))
     perfis = pd.read_parquet(RAIZ / "dados" / "processados" / "perfil_atual.parquet")
@@ -160,6 +161,20 @@ COLS_EXTRAS = ["perfil_inad_var_1m_pp", "perfil_inad_var_3m_pp", "perfil_inad_va
 COLS_PRECOS = ["preco_cesta_var_6m_pct", "preco_cesta_var_12m_pct", "fert_var_6m_pct", "fert_var_12m_pct",
                "boi_var_12m_pct", "relacao_troca_var_12m_pct", "conab_margem_pct", "conab_custo_var_anual_pct"]
 NOME_CRITERIO = {"f1_auc": "F1 e AUC-ROC juntos", "f1": "F1", "beneficio": "benefício líquido médio"}
+REGRA_PROFESSOR = "professor_pr_auc_precisao_recall_f1"
+if meta.get("criterio_escolha") == REGRA_PROFESSOR:
+    TEXTO_ESCOLHA = (
+        "- **Ajustes:** XGBoost, CatBoost, Random Forest e LightGBM tiveram os hiperparâmetros buscados com o Optuna (50 tentativas, "
+        "PR-AUC) e foram combinados por empilhamento, uma regressão logística sobre as previsões deles. O F1 define a fatia sinalizada.\n"
+        f"- **Escolha:** no teste, pela melhor posição média em PR-AUC, precisão, recall e F1, por orientação do professor "
+        f"({meta['modelo_escolhido']}). Isso deixa os números do teste otimistas.\n"
+        "- **Explicação:** os fatores somam as explicações SHAP dos quatro modelos com os pesos do empilhamento. A parte do Random "
+        "Forest é aproximada, então os valores servem como orientação.")
+else:
+    TEXTO_ESCOLHA = (
+        "- **Ajustes:** o aprendizado usa a perda logística, os hiperparâmetros são buscados pelo Brier e o F1 define a fatia sinalizada.\n"
+        f"- **Escolha:** o modelo de maior {NOME_CRITERIO.get(meta.get('criterio_escolha'), 'F1')} na segunda janela de validação, "
+        f"usando os ajustes da primeira ({meta['modelo_escolhido']}). O teste não entra nessa conta.")
 MES_ALVO = (pd.Timestamp(ctx["data_base"]) + pd.DateOffset(months=meta["horizonte_meses"])).month
 CHAVES_PERFIL = ["uf", "segmento", "cliente", "ocupacao_atividade", "porte", "submodalidade", "origem", "indexador"]
 
@@ -227,8 +242,8 @@ st.caption(
     f"dados até {ctx['data_base'][:7].replace('-', '/')}"
 )
 
-aba_avaliar, aba_lote, aba_modelo, aba_dados = st.tabs(
-    ["Avaliar produtor", "Avaliação em lote", "Desempenho do modelo", "Dados e método"])
+aba_avaliar, aba_lote, aba_segmentos, aba_modelo, aba_dados = st.tabs(
+    ["Avaliar produtor", "Avaliação em lote", "Segmentos críticos", "Desempenho do modelo", "Dados e método"])
 
 # ================================================================== AVALIAR
 with aba_avaliar:
@@ -465,10 +480,92 @@ with aba_lote:
             st.download_button("Baixar resultado", lote.to_csv(index=False).encode("utf-8"),
                                "resultado_risco.csv", "text/csv")
 
+# ================================================================== SEGMENTOS
+from segmentos import LIMITES, agregar  # noqa: E402
+
+
+@st.cache_data(show_spinner="Calculando o risco dos perfis da carteira atual...")
+def risco_carteira() -> pd.DataFrame:
+    atual = pd.read_parquet(RAIZ / "dados" / "processados" / "base_atual.parquet")
+    return atual.assign(previsto=MODELO.prever(atual), atual=atual["perfil_inad_atual_pct"] / 100)
+
+
+with aba_segmentos:
+    st.subheader("Segmentos críticos nos próximos 6 meses")
+    st.write("Quais segmentos (UF × finalidade) e quais perfis devem passar de um limite de inadimplência daqui a 6 meses, "
+             f"com os perfis da carteira de **{ctx['data_base'][:7].replace('-', '/')}**. Um segmento é crítico quando a "
+             "inadimplência prevista, ponderada pela carteira, passa do limite.")
+    limite = st.radio("Limite de inadimplência", LIMITES, index=1, horizontal=True, format_func=lambda x: fmt_pct(x, 0))
+    carteira = risco_carteira()
+    seg = agregar(carteira, mes=None).sort_values("previsto", ascending=False)
+    seg_crit = seg[seg["previsto"] >= limite]
+    perf_crit = carteira[carteira["previsto"] >= limite]
+    k1, k2, k3 = st.columns(3)
+    k1.metric("Segmentos críticos", f"{len(seg_crit)} de {len(seg)}")
+    k2.metric("Carteira nesses segmentos", fmt_pct(seg_crit["peso"].sum() / seg["peso"].sum(), 1))
+    k3.metric("Perfis críticos", f"{fmt_int(len(perf_crit))} de {fmt_int(len(carteira))}")
+    previsto_carteira = np.average(carteira["previsto"], weights=carteira["peso"])
+    atual_carteira = np.average(carteira["atual"], weights=carteira["peso"])
+    if previsto_carteira > 1.2 * atual_carteira:
+        st.info(f"O modelo prevê {fmt_pct(previsto_carteira, 1)} de inadimplência para a carteira daqui a 6 meses, contra "
+                f"{fmt_pct(atual_carteira, 1)} hoje. Ele está assumindo que a piora recente continua; se o ciclo estabilizar, "
+                "parte desses segmentos não chegará ao limite. Use a lista mais como ordem de prioridade do que como contagem exata.",
+                icon="ℹ️")
+
+    tabela = pd.DataFrame({
+        "UF": seg["uf"], "Finalidade": seg["submodalidade"], "Carteira (R$ mi)": seg["peso"], "Perfis": seg["perfis"],
+        "Inadimplência hoje (%)": seg["atual"] * 100, "Prevista em 6 meses (%)": seg["previsto"] * 100,
+        "Crítico": np.where(seg["previsto"] >= limite, "sim", "não"),
+    })
+    st.markdown("**Segmentos, do maior para o menor risco previsto**")
+    st.dataframe(tabela.style.format({"Carteira (R$ mi)": lambda v: br(v, 1), "Inadimplência hoje (%)": lambda v: br(v, 2),
+                                      "Prevista em 6 meses (%)": lambda v: br(v, 2)}),
+                 use_container_width=True, hide_index=True, height=380)
+
+    st.markdown("**Perfis críticos com mais dinheiro em risco**")
+    st.caption("Ordenados pelo valor previsto de inadimplência (taxa prevista × carteira). Ordenar só pela taxa levaria ao topo "
+               "perfis muito pequenos que já estão quase todos inadimplentes.")
+    cols_perfil = ["uf", "segmento", "cliente", "ocupacao_atividade", "porte", "submodalidade", "origem", "indexador"]
+    top = perf_crit.assign(em_risco=perf_crit["previsto"] * perf_crit["peso"]).sort_values("em_risco", ascending=False).head(30)
+    st.dataframe(top[cols_perfil].assign(**{
+        "Carteira (R$ mi)": top["peso"].map(lambda v: br(v, 1)),
+        "Inadimplência hoje (%)": top["atual"].map(lambda v: br(v * 100, 2)),
+        "Prevista em 6 meses (%)": top["previsto"].map(lambda v: br(v * 100, 2)),
+        "Valor em risco (R$ mi)": top["em_risco"].map(lambda v: br(v, 1))}),
+        use_container_width=True, hide_index=True)
+    st.download_button("Baixar todos os segmentos", tabela.to_csv(index=False).encode("utf-8"), "segmentos_criticos.csv", "text/csv")
+
+    medicao = meta.get("segmentos_teste")
+    if medicao:
+        st.markdown(f"**Como essa previsão se saiu no teste (limite de {fmt_pct(limite, 0)})**")
+        linhas = [r for r in medicao["linhas"] if abs(r["limite"] - limite) < 1e-9]
+        st.dataframe(pd.DataFrame([{
+            "Nível": "Perfil" if r["nivel"] == "perfil" else "Segmento UF × finalidade",
+            "Pesa por": "reais de carteira" if r["pesa"] == "reais" else "contagem",
+            "F1 do modelo": r["modelo"]["f1"], "Precisão": r["modelo"]["precisao"], "Recall": r["modelo"]["recall"],
+            "F1 repetindo o nível atual": r["nivel_atual"]["f1"], "F1 sinalizando tudo": r["sinalizar_tudo"]["f1"],
+        } for r in linhas]).style.format(lambda v: br(v, 3) if isinstance(v, float) else v), use_container_width=True, hide_index=True)
+        perde = [r for r in linhas if r["modelo"]["f1"] < r["nivel_atual"]["f1"]]
+        if perde:
+            st.warning("Neste limite, em pelo menos uma visão a regra simples de repetir o nível atual tem F1 maior que o modelo. "
+                       "Use essa visão com cautela.", icon="⚠️")
+    st.caption("É outra pergunta, diferente da probabilidade do modelo principal: o F1 daqui não é comparável ao da aba de desempenho. "
+               "Os limites foram escolhidos depois de ver o teste, e o modelo foi escolhido no teste, então essas medidas são otimistas. "
+               f"O modelo prevê hoje {fmt_pct(np.average(carteira['previsto'], weights=carteira['peso']), 1)} de inadimplência para a "
+               f"carteira, contra {fmt_pct(np.average(carteira['atual'], weights=carteira['peso']), 1)} agora; se esse nível estiver alto, "
+               "a lista de críticos fica maior do que deveria.")
+
 # ================================================================== MODELO
 with aba_modelo:
     st.subheader("Comparação dos modelos — teste fora do tempo")
-    if "validacao2_de" in meta:
+    if meta.get("criterio_escolha") == REGRA_PROFESSOR:
+        st.write(f"Treino com perfis até **{meta['treino_ate'][:7]}**, teste com perfis de **{meta['teste_desde'][:7]}** "
+                 f"em diante (alvos observados 6 meses depois). Os hiperparâmetros foram buscados com o Optuna pela PR-AUC "
+                 f"na janela de **{meta['validacao2_de'][:7]}** a **{meta['validacao2_ate'][:7]}**; a calibração e a fatia sinalizada "
+                 f"vêm da janela de **{meta['validacao_de'][:7]}** a **{meta['validacao_ate'][:7]}**. Por orientação do professor, "
+                 "o modelo foi escolhido **no próprio teste**, pela melhor posição média em PR-AUC, precisão, recall e F1. "
+                 "Por isso, os números do modelo escolhido são otimistas até serem confirmados com meses novos.")
+    elif "validacao2_de" in meta:
         st.write(f"Treino com perfis até **{meta['treino_ate'][:7]}**, teste com perfis de **{meta['teste_desde'][:7]}** "
                  f"em diante (alvos observados 6 meses depois). A calibração e a fatia de carteira sinalizada vêm da validação "
                  f"com perfis de **{meta['validacao_de'][:7]}** a **{meta['validacao_ate'][:7]}**. O modelo é o de maior "
@@ -622,8 +719,7 @@ with aba_dados:
 - **Modelos comparados:** Regressão Logística, Random Forest, XGBoost e XGBoost relativo à UF, além de versões com o
   histórico do próprio perfil e com mais peso nos meses recentes. O modelo relativo à UF parte do patamar atual de
   inadimplência rural da UF (offset em log-chance) e aprende quanto cada perfil desvia dele.
-- **Ajustes:** o aprendizado usa a perda logística, os hiperparâmetros são buscados pelo Brier e o F1 define a fatia sinalizada.
-- **Escolha:** o modelo de maior {NOME_CRITERIO.get(meta.get('criterio_escolha'), 'F1')} na segunda janela de validação, usando os ajustes da primeira ({meta['modelo_escolhido']}). O teste não entra nessa conta.
+{TEXTO_ESCOLHA}
 - **Calibração e sinalização:** a probabilidade é calibrada ({meta['producao']['calibracao']}) e cada mês sinaliza a fatia de maior risco da carteira,
   ambas ajustadas em previsões fora da amostra dos meses mais recentes com alvo conhecido.
 - **Saída:** probabilidade de inadimplência de uma operação com aquele perfil, no cenário informado.

@@ -214,12 +214,17 @@ class Componente:
     __call__ = prever
 
     def contribuicoes(self, df) -> pd.DataFrame:
-        """SHAP em log-chance por variável original. No Random Forest, a escala de probabilidade é convertida pela derivada
-        do logit no ponto previsto, uma aproximação."""
+        """SHAP em log-chance por variável original.
+
+        No Random Forest, usa o SHAP aproximado do shap (método de Saabas), porque o exato leva cerca de 1 s por linha nas
+        árvores profundas, e converte a escala de probabilidade pela derivada do logit no ponto previsto. As duas coisas
+        tornam a parte dele aproximada."""
         import shap
         if self._explicador is None:
             self._explicador = shap.TreeExplainer(self.modelo)
-        sv = np.asarray(self._explicador.shap_values(self._matriz(df)))
+        X = self._matriz(df)
+        sv = np.asarray(self._explicador.shap_values(X, approximate=True) if self.tipo == "random_forest"
+                        else self._explicador.shap_values(X))
         if sv.ndim == 3:  # classificadores que devolvem uma matriz por classe
             sv = sv[..., -1] if sv.shape[-1] == 2 else sv[-1]
         sv = np.atleast_2d(sv)
@@ -333,3 +338,20 @@ class ModeloEnsemble:
         for chave in ("calibrador", "limiar", "fatia_pct", "valor_base", "erro_aditividade"):
             setattr(m, chave, info[chave])
         return m
+
+
+def carregar_modelo(raiz):
+    """Modelo ativo do dashboard: o ensemble, se os metadados apontarem para ele, ou o modelo salvo em joblib."""
+    import json
+    import joblib
+    from pathlib import Path
+    raiz = Path(raiz)
+    meta = json.loads((raiz / "modelos" / "metadados.json").read_text(encoding="utf-8"))
+    if meta.get("formato") == "ensemble":
+        pasta = raiz / "modelos" / "ensemble" / "final"
+        if not (pasta / "ensemble.joblib").exists():
+            raise FileNotFoundError(f"os modelos do ensemble não estão em {pasta}. Eles não vão para o repositório (~130 MB): rode "
+                                    "src/montar_ensemble.py com o producao_final.zip do Colab, ou volte ao modelo anterior com "
+                                    "src/trocar_criterio.py f1_auc")
+        return ModeloEnsemble.carregar(pasta)
+    return joblib.load(raiz / "modelos" / "modelo_final.joblib")  # arquivo gerado por este projeto
