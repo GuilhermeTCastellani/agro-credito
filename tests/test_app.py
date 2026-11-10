@@ -44,8 +44,14 @@ def test_modelo_prob_valida_e_shap_soma():
 
 
 def test_modelo_salvo_tem_calibrador_e_limiar():
+    import json
     m = carregar_modelo(RAIZ)
-    assert m.calibrador is not None
+    meta = json.loads((RAIZ / "modelos" / "metadados.json").read_text(encoding="utf-8"))
+    # a média simples de produção vai sem calibrador, por decisão do backtest; os outros modelos precisam dele
+    if meta["producao"].get("calibracao") == "nenhuma":
+        assert m.calibrador is None
+    else:
+        assert m.calibrador is not None
     assert 0 < m.limiar < 1
     assert 0 < m.fatia_pct < 100
 

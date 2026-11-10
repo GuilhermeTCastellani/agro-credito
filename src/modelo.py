@@ -27,6 +27,7 @@ PERFIL_AMPLIADO = ["perfil_inad_var_1m_pp", "perfil_inad_var_3m_pp", "perfil_ina
 PRECOS = ["preco_cesta_var_6m_pct", "preco_cesta_var_12m_pct", "fert_var_6m_pct", "fert_var_12m_pct",
           "boi_var_12m_pct", "relacao_troca_var_12m_pct"]
 CUSTOS = ["conab_margem_pct", "conab_custo_var_anual_pct"]
+LSPA = ["lspa_var_producao_pct", "lspa_revisao_3m_pct"]  # safra corrente estimada pelo IBGE (levantamento do mês anterior)
 
 
 def log_valor(X):

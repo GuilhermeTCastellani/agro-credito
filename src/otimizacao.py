@@ -22,16 +22,24 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score
 
-from modelo import (CATEGORICAS, CUSTOS, NUMERICAS_TODAS, PERFIL, PERFIL_AMPLIADO, Calibrador, Componente, ModeloEnsemble,
-                    logit, preprocessador)
+from modelo import (CATEGORICAS, CUSTOS, LSPA, NUMERICAS_TODAS, PERFIL, PERFIL_AMPLIADO, Calibrador, Componente,
+                    ModeloEnsemble, logit, preprocessador)
 from treino import (FIM_TREINO, FIM_TREINO_VAL, FIM_TREINO_VAL2, FIM_VAL, FIM_VAL2, INI_TESTE, INI_VAL, INI_VAL2, SEED,
                     ajustar_limiar, escolher_calibrador, expandir, fatia_do_limiar, limiar_da_fatia, metricas,
                     metricas_extras, metricas_sinal, sinalizar_por_fatia)
 
 MODELOS_ENSEMBLE = ("xgboost", "catboost", "random_forest", "lightgbm")
 
-NUMERICAS = NUMERICAS_TODAS + PERFIL + PERFIL_AMPLIADO + CUSTOS
+NUMERICAS_BASE = NUMERICAS_TODAS + PERFIL + PERFIL_AMPLIADO + CUSTOS
+NUMERICAS = list(NUMERICAS_BASE)
 FEATURES = CATEGORICAS + NUMERICAS
+
+
+def definir_variaveis(lspa: bool) -> None:
+    """Liga ou desliga as variáveis da LSPA em todos os treinos seguintes deste módulo."""
+    global NUMERICAS, FEATURES
+    NUMERICAS = NUMERICAS_BASE + (LSPA if lspa else [])
+    FEATURES = CATEGORICAS + NUMERICAS
 ESTIMADORES = 1000
 PARADA = 100
 AMOSTRA_RF = 200_000
@@ -235,6 +243,8 @@ class _TrialFixo:
 
 def gerar_previsoes(modelo: str, params_optuna: dict, janelas: dict, pasta: Path, gpu: bool = False) -> dict:
     """Treina nas três janelas e guarda as previsões; não refaz o que já está salvo."""
+    pasta = Path(pasta)
+    pasta.mkdir(parents=True, exist_ok=True)
     arquivo = pasta / f"previsoes_{modelo}.npz"
     if arquivo.exists():
         with np.load(arquivo) as z:
@@ -399,3 +409,45 @@ def treinar_producao(caminho_base, caminho_atual, pasta, gpu: bool = False, nome
     (destino / "producao.json").write_text(json.dumps(joblib_info, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"produção: calibração {metodo}; fatia {fatia * 100:.1f}%; limiar {final.limiar * 100:.2f}%", flush=True)
     return joblib_info
+
+
+def treinar_producao_media(caminho_base, caminho_atual, pasta, params: dict, previsoes: dict, janelas: dict,
+                           gpu: bool = False, nomes=MODELOS_ENSEMBLE) -> dict:
+    """Produção da média simples das log-chances (decidida pelo backtest de 2026-11-10): sem calibrador.
+
+    A fatia vem das previsões fora da amostra da janela de teste nos 6 meses mais recentes com alvo conhecido; o threshold é o
+    que gera essa fatia nos perfis do último mês. Os componentes finais usam a base inteira. Cada um é salvo ao terminar.
+    """
+    pasta = Path(pasta)
+    destino = pasta / "producao"
+    te = janelas["teste"]
+    recente = (te["data_base"] > te["data_base"].max() - pd.DateOffset(months=6)).to_numpy()
+    y, w = _partes(te)
+    p_te = 1 / (1 + np.exp(-np.mean([logit(previsoes[n]["teste"]) for n in nomes], axis=0)))
+    fatia = fatia_do_limiar(p_te[recente], w[recente], ajustar_limiar(y[recente], w[recente], p_te[recente]))
+
+    df = pd.read_parquet(caminho_base)
+    df["peso"] = df["peso"].clip(upper=df["peso"].quantile(0.99))
+    comps = {}
+    for nome in nomes:
+        caminho = destino / "final" / nome
+        if (caminho / "pre.joblib").exists():
+            comps[nome] = Componente.carregar(caminho)
+            continue
+        t0 = time.time()
+        comps[nome] = treinar(nome, sugerir(nome, _TrialFixo(params[nome])), df, gpu)
+        comps[nome].salvar(caminho)
+        tamanho = sum(a.stat().st_size for a in caminho.iterdir()) / 1e6
+        print(f"final/{nome}: {time.time() - t0:.0f}s, {tamanho:.0f} MB", flush=True)
+    del df
+    final = ModeloEnsemble(comps, {n: 1 / len(nomes) for n in nomes}, 0.0)
+    atual = pd.read_parquet(caminho_atual)
+    final.fatia_pct = fatia * 100
+    final.limiar = limiar_da_fatia(final.prever(atual), atual["peso"].to_numpy(), fatia)
+    final.salvar(destino / "final", componentes=False)
+    info = {"combinacao": "media_logit", "calibracao": "nenhuma", "fatia_pct": fatia * 100, "limiar_pct": final.limiar * 100,
+            "janela_de": str(te["data_base"][recente].min().date()), "janela_ate": str(te["data_base"].max().date()),
+            "variaveis": NUMERICAS, "coeficientes": final.coeficientes, "intercepto": 0.0}
+    (destino / "producao.json").write_text(json.dumps(info, ensure_ascii=False, indent=1), encoding="utf-8")
+    print(f"produção (média): fatia {fatia * 100:.1f}%; limiar {final.limiar * 100:.2f}%", flush=True)
+    return info

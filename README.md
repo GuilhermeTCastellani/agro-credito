@@ -31,47 +31,65 @@ O modelo treinado já vem em `modelos/`, então o dashboard abre direto. Abas:
 ## Resultado principal: perfis em alerta (teste)
 
 Um perfil é sinalizado quando a inadimplência prevista passa do limite: 10% mede o nível crítico e 5% mede atenção ou crítico. O teste usa perfis de jan/2025 a fev/2026 (alvos de jul/2025 a
-ago/2026), com o ensemble empilhado calibrado na primeira janela de validação. Precisão, recall e F1 pesam por **reais de carteira**.
+ago/2026), com a média dos quatro modelos calibrada na primeira janela de validação. Precisão, recall e F1 pesam por **reais de carteira**.
 
 | Perfil passa de | Precisão | Recall | **F1 do modelo** | F1 repetindo o nível atual | F1 sinalizando tudo | Carteira sinalizada |
 |---|---|---|---|---|---|---|
-| **5% (atenção ou crítico)** | **0,729** | **0,858** | **0,789** | **0,681** | **0,502** | **39%** |
-| **10% (crítico)** | **0,691** | **0,628** | **0,658** | **0,551** | **0,296** | **16%** |
-| 20% | 0,719 | 0,375 | 0,493 | 0,461 | 0,129 | 4% |
+| **5% (atenção ou crítico)** | **0,729** | **0,859** | **0,789** | **0,681** | **0,502** | **39%** |
+| **10% (crítico)** | **0,691** | **0,627** | **0,657** | **0,551** | **0,296** | **16%** |
+| 20% | 0,724 | 0,383 | 0,501 | 0,461 | 0,129 | 4% |
 
 O F1 em 5% sai maior em parte porque mais carteira passa de 5% (33% no teste, contra 17% em 10%): sinalizar tudo já dá 0,502. O
 ganho sobre repetir o nível atual é praticamente o mesmo nos dois limites. O 10% marca o nível crítico porque a lista de 5% é larga
 demais para priorizar e porque 5% fica abaixo da inadimplência média atual (7,2%).
 
 Contando perfis em vez de reais, o F1 em 10% é 0,628 (contra 0,544 repetindo o nível atual). Agregando em segmentos UF × finalidade,
-o F1 em 10% é 0,754 contando segmentos e 0,557 pesando por reais. A medição completa fica em `modelos/metadados.json`, na chave
+o F1 em 10% é 0,767 contando segmentos e 0,607 pesando por reais. A medição completa fica em `modelos/metadados.json`, na chave
 `segmentos_teste`, e é gerada por `python src/segmentos.py`.
 
 **Limites desta medição.** Os limites foram escolhidos depois de ver o teste, e o modelo também foi escolhido no teste, por orientação
 do professor. Os números são otimistas até virem meses novos do Banco Central. Em 20%, o ganho sobre repetir o nível atual é pequeno.
 
-**Na carteira atual.** Com os perfis de ago/2026, o modelo prevê 11,2% de inadimplência em 6 meses, contra 7,2% hoje. Dos 22.110 perfis,
-10.829 ficam críticos (33% da carteira; no teste, eram 16%), 2.921 em atenção (20,8%) e 8.360 normais (46,2%). O nível previsto é incerto
+**Na carteira atual.** Com os perfis de ago/2026, o modelo prevê 8,8% de inadimplência em 6 meses, contra 7,2% hoje. Dos 22.110 perfis,
+10.411 ficam críticos (31,9% da carteira; no teste, eram 16%), 3.171 em atenção (19,5%) e 8.528 normais (48,6%). O nível previsto é incerto
 (veja abaixo), e quem passa dos limites depende dele: use a lista mais como ordem de prioridade do que como contagem exata.
 
 **Previsto × real, mês a mês.** Nos alvos de jul/2024 a ago/2026 (janelas de validação e teste), o modelo errou o nível para os dois lados,
 sem um viés fixo: previu alto demais de jan a abr/2025 e de fev a abr/2026 (até 0,6 p.p.) e baixo demais de ago a dez/2025 (até 0,8 p.p.) e
-em ago/2026 (6,2% previstos contra 7,2% reais). As maiores superestimações por UF foram no RS logo depois das enchentes de 2024 e nas UFs
+em ago/2026 (6,3% previstos contra 7,2% reais). As maiores superestimações por UF foram no RS logo depois das enchentes de 2024 e nas UFs
 de grãos na colheita (fev–abr); o modelo subestima de forma sistemática MA, TO, PI, GO, MS e MT e a finalidade comercialização.
 
-**Projeção.** O modelo em produção, aplicado aos perfis de mar a ago/2026, projeta a inadimplência da carteira subindo de 8,9% em
-set/2026 para 11,2% em fev/2027 (hoje: 7,2%). A série histórica fica em `modelos/metadados.json`, na chave `acompanhamento`, e a
+**Projeção.** O modelo em produção, aplicado aos perfis de mar a ago/2026, projeta a inadimplência da carteira subindo de 7,4% em
+set/2026 para 8,8% em fev/2027 (hoje: 7,2%). A série histórica fica em `modelos/metadados.json`, na chave `acompanhamento`, e a
 projeção, na chave `projecao`; as duas aparecem no gráfico da aba de desempenho, por UF. Pesam pela carteira, sem teto, e são geradas
-por `python src/segmentos.py`. Parte do salto entre ago/2026 (último mês conhecido) e set/2026 (primeiro projetado) vem da troca do
+por `python src/segmentos.py`. Parte da diferença entre ago/2026 (último mês conhecido) e set/2026 (primeiro projetado) vem da troca do
 modelo do teste pelo de produção.
 
-## Modelo de base: ensemble empilhado
+## Modelo de base: média de quatro modelos
 
-A previsão por perfil vem de um ensemble empilhado de XGBoost, CatBoost, Random Forest e LightGBM, com hiperparâmetros buscados pelo
-Optuna pela PR-AUC (50 tentativas por modelo) e treino final no Colab. Medido como ordenação de reais de carteira com o alvo
-fracionário, no teste: PR-AUC 0,269, precisão 0,402, recall 0,205, F1 0,272, AUC 0,817 e Brier 0,0518. Esse F1 responde a outra
-pergunta e não se compara com o F1 por perfil. Em produção: calibração isotônica, fatia de 8,9% e limiar de 32,26%.
-`python src/trocar_criterio.py f1_auc` volta ao modelo anterior (backup em `modelos/backup_antes_ensemble/`).
+A previsão por perfil vem da média simples das log-chances de XGBoost, CatBoost, Random Forest e LightGBM, com hiperparâmetros
+buscados pelo Optuna pela PR-AUC (50 tentativas por modelo) e treino final no Colab. Medido como ordenação de reais de carteira com o
+alvo fracionário, no teste: PR-AUC 0,271, precisão 0,409, recall 0,199, F1 0,268, AUC 0,817 e Brier 0,0518. Esse F1 responde a outra
+pergunta e não se compara com o F1 por perfil. Em produção: sem calibrador, fatia de 9,1% e limiar de 21,82%.
+
+**Por que a média, e não o empilhamento.** Até 10/11/2026 a produção usava um empilhamento (regressão logística sobre os quatro
+modelos, com pesos da validação de 2024). Os pesos somavam 1,12 e tinham intercepto positivo, o que inflava o nível nos modelos de
+produção. Um backtest trimestral (`src/backtest.py`) simulou o procedimento de produção em 8 origens, de mar/2024 a dez/2025: treino
+até 6 meses antes de cada origem e previsão dos 3 meses seguintes. Avaliado a partir de mar/2025, com a regra fixada antes de ver o
+resultado (menor erro de nível, sem perder mais de 0,01 em PR-AUC e F1 no alerta crítico):
+
+| Forma de combinar | Erro de nível (p.p.) | Viés | PR-AUC | AUC | F1 ≥ 10% | F1 ≥ 5% |
+|---|---|---|---|---|---|---|
+| **Média** | **1,14** | **−0,24** | **0,296** | **0,818** | **0,658** | **0,788** |
+| Empilhamento (anterior) | 1,75 | +1,17 | 0,296 | 0,818 | 0,666 | 0,780 |
+| Empilhamento reajustado a cada origem | 2,14 | +1,43 | 0,289 | 0,815 | 0,653 | 0,774 |
+| Média com ajuste de nível móvel | 2,17 | +1,20 | 0,285 | 0,811 | 0,638 | 0,758 |
+| Empilhamento + calibração móvel | 2,55 | +1,96 | 0,288 | 0,814 | 0,642 | 0,766 |
+| Média + calibração móvel | 2,65 | +1,99 | 0,288 | 0,813 | 0,639 | 0,763 |
+
+O período avaliado coincide com o teste, que já tinha sido visto: o backtest escolhe o procedimento, e a confirmação limpa vem dos
+meses novos do Banco Central. Resultados em `modelos/backtest/resultados.json`. Para voltar ao empilhamento, copie os arquivos de
+`modelos/backup_antes_media/` de volta (`ensemble.joblib` para `modelos/ensemble/final/`) e rode `python src/segmentos.py`.
 
 ## Histórico: modelo anterior (XGBoost, antes do ensemble)
 
@@ -156,6 +174,8 @@ python src/coleta.py      # baixa SCR.data (~800 MB), IBGE, SGS, Banco Mundial e
 python src/features.py    # monta a base de modelagem e o contexto atual por UF
 python src/treino.py      # modelos de base: busca pelo Brier, decide por F1 e AUC-ROC, calibra e salva com o SHAP
 python src/montar_ensemble.py  # instala o ensemble treinado no Colab em modelos/ensemble/final/
+python src/comparar_media.py   # prepara a média simples dos quatro modelos em modelos/ensemble/media/
+python src/instalar_media.py   # põe a média em produção (backup em modelos/backup_antes_media/)
 python src/segmentos.py   # mede no teste os perfis e segmentos acima de 5%, 10% e 20%
 python src/trocar_criterio.py f1  # opcional: alterna o critério entre f1_auc (padrão), f1 e beneficio, sem retreinar
 python -m pytest tests -q # testes de fumaça (modelo, aditividade do SHAP, dashboard)
@@ -172,7 +192,9 @@ src/coleta.py           download e extração das fontes oficiais
 src/features.py         engenharia de variáveis e alvo 6 meses à frente
 src/modelo.py           pré-processamento, offset, calibrador e classe ModeloRisco (prever + explicar)
 src/segmentos.py        níveis de alerta (atenção 5%, crítico 10%) e medição dos perfis e segmentos
-src/montar_ensemble.py  instala o ensemble empilhado
+src/montar_ensemble.py  instala os quatro modelos do ensemble treinados no Colab
+src/instalar_media.py   põe em produção a média simples dos quatro modelos
+src/backtest.py         backtest trimestral das formas de combinar os modelos
 src/trocar_criterio.py  alterna o modelo ativo entre os critérios de escolha
 src/treino.py           validação e teste fora do tempo, calibração, threshold, modelo final e SHAP
 modelos/                modelo treinado, metadados, log do treino e backup da versão anterior
@@ -189,7 +211,7 @@ tests/                  testes de fumaça e das peças de calibração, threshol
 - **Categorias do SCR.** Ocupação e porte são os declarados pelas instituições; produtores PF aparecem em geral como
   Autônomo, Empresário ou Outros.
 - **Mudança de ciclo.** O nível previsto oscila: no histórico, o modelo previu alto demais no início de 2025 e baixo demais desde
-  meados de 2025. Para os perfis de ago/2026, prevê 11,2% de inadimplência em 6 meses, contra 7,2% hoje, e não dá para conferir esse
+  meados de 2025. Para os perfis de ago/2026, prevê 8,8% de inadimplência em 6 meses, contra 7,2% hoje, e não dá para conferir esse
   número ainda; ele pode estar alto ou baixo. Esse nível decide quantos perfis ficam em alerta. Retreine e recalibre mensalmente e
   acompanhe o previsto × real.
 - **Preços e custos.** O preço é internacional, não o recebido pelo produtor, e a margem da Conab cobre só soja e milho e está

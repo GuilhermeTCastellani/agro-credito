@@ -162,7 +162,19 @@ COLS_PRECOS = ["preco_cesta_var_6m_pct", "preco_cesta_var_12m_pct", "fert_var_6m
                "boi_var_12m_pct", "relacao_troca_var_12m_pct", "conab_margem_pct", "conab_custo_var_anual_pct"]
 NOME_CRITERIO = {"f1_auc": "F1 e AUC-ROC juntos", "f1": "F1", "beneficio": "benefício líquido médio"}
 REGRA_PROFESSOR = "professor_pr_auc_precisao_recall_f1"
-if meta.get("criterio_escolha") == REGRA_PROFESSOR:
+REGRA_BACKTEST = "backtest_erro_de_nivel"
+MEDIA_PRODUCAO = meta.get("producao", {}).get("combinacao") == "media_logit"
+if meta.get("criterio_escolha") == REGRA_BACKTEST:
+    TEXTO_ESCOLHA = (
+        "- **Ajustes:** XGBoost, CatBoost, Random Forest e LightGBM tiveram os hiperparâmetros buscados com o Optuna (50 tentativas, "
+        "PR-AUC) e são combinados pela **média simples** das log-chances, sem pesos ajustados. O F1 define a fatia sinalizada.\n"
+        "- **Escolha:** os modelos foram escolhidos no teste, pela posição média em PR-AUC, precisão, recall e F1, por orientação do "
+        "professor, o que deixa os números do teste otimistas. A forma de combinar veio de um **backtest trimestral** (8 origens, "
+        "de mar/2024 a dez/2025, avaliado de mar/2025 em diante): a média errou o nível em 1,14 p.p., contra 1,75 do empilhamento, "
+        "com PR-AUC igual e F1 no alerta crítico 0,008 menor.\n"
+        "- **Explicação:** os fatores somam as explicações SHAP dos quatro modelos com peso igual. A parte do Random "
+        "Forest é aproximada, então os valores servem como orientação.")
+elif meta.get("criterio_escolha") == REGRA_PROFESSOR:
     TEXTO_ESCOLHA = (
         "- **Ajustes:** XGBoost, CatBoost, Random Forest e LightGBM tiveram os hiperparâmetros buscados com o Optuna (50 tentativas, "
         "PR-AUC) e foram combinados por empilhamento, uma regressão logística sobre as previsões deles. O F1 define a fatia sinalizada.\n"
@@ -655,9 +667,12 @@ with aba_modelo:
         erro = s["real_pct"] - s["previsto_pct"]
         st.caption(f"O modelo previu alto demais em {int((erro < -0.25).sum())} meses e baixo demais em {int((erro > 0.25).sum())} "
                    f"(diferença acima de 0,25 p.p.), de {len(s)}. Médias ponderadas pela carteira. Até o teste, os modelos foram treinados "
-                   "antes de cada janela, mas a calibração vem da validação 1 e os pesos do empilhamento, da validação 2. A projeção usa o "
-                   "modelo em produção, treinado com todo o histórico e calibrado nos meses finais, aplicado aos perfis dos últimos 6 meses; "
-                   "por isso, parte do salto entre o último mês conhecido e o primeiro projetado vem da troca de modelo.")
+                   + ("antes de cada janela, mas a calibração vem da validação 1. A projeção usa o modelo em produção, treinado com "
+                      "todo o histórico, sem calibração, aplicado aos perfis dos últimos 6 meses; parte da diferença entre o último mês "
+                      "conhecido e o primeiro projetado vem da troca de modelo." if MEDIA_PRODUCAO else
+                      "antes de cada janela, mas a calibração vem da validação 1 e os pesos do empilhamento, da validação 2. A projeção usa o "
+                      "modelo em produção, treinado com todo o histórico e calibrado nos meses finais, aplicado aos perfis dos últimos 6 meses; "
+                      "por isso, parte do salto entre o último mês conhecido e o primeiro projetado vem da troca de modelo."))
 
     st.subheader("Modelo de base: comparação dos modelos — teste fora do tempo")
     if meta.get("criterio_escolha") == REGRA_PROFESSOR:
@@ -822,8 +837,8 @@ with aba_dados:
   histórico do próprio perfil e com mais peso nos meses recentes. O modelo relativo à UF parte do patamar atual de
   inadimplência rural da UF (offset em log-chance) e aprende quanto cada perfil desvia dele.
 {TEXTO_ESCOLHA}
-- **Calibração e sinalização:** a probabilidade é calibrada ({meta['producao']['calibracao']}) e cada mês sinaliza a fatia de maior risco da carteira,
-  ambas ajustadas em previsões fora da amostra dos meses mais recentes com alvo conhecido.
+{"- **Calibração e sinalização:** a média vai sem calibrador, porque o backtest mostrou que recalibrar nos meses recentes piora o nível; cada mês sinaliza a fatia de maior risco da carteira, ajustada em previsões fora da amostra dos meses mais recentes com alvo conhecido." if MEDIA_PRODUCAO else
+f"- **Calibração e sinalização:** a probabilidade é calibrada ({meta['producao']['calibracao']}) e cada mês sinaliza a fatia de maior risco da carteira, ambas ajustadas em previsões fora da amostra dos meses mais recentes com alvo conhecido."}
 - **Saída:** inadimplência prevista de cada perfil daqui a {meta['horizonte_meses']} meses e o nível de alerta: crítico a partir
   de {LIM_TXT}, atenção de {ATENCAO_TXT} a {LIM_TXT} e normal abaixo disso. É o produto principal: a lista de perfis em alerta da carteira.
 - **Explicabilidade:** valores SHAP do modelo final, agregados por variável original.

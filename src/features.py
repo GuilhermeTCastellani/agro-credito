@@ -26,7 +26,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from modelo import CUSTOS, PERFIL, PERFIL_AMPLIADO, PRECOS
+from modelo import CUSTOS, LSPA, PERFIL, PERFIL_AMPLIADO, PRECOS
 
 RAIZ = Path(__file__).resolve().parents[1]
 INTERM = RAIZ / "dados" / "intermediarios"
@@ -89,6 +89,37 @@ def indicadores_safra() -> pd.DataFrame:
     cols = ["safra_anomalia_pct", "safra_perda_area_pct", "safra_var_producao_pct"]
     t[cols] = t[cols].replace([np.inf, -np.inf], np.nan)
     return t[["uf", "ano"] + cols]
+
+
+PRODUCAO_MINIMA_LSPA = 50_000  # toneladas; abaixo disso a variação de grãos da UF é ruído (AP, RR, AM em alguns anos)
+
+
+def variaveis_lspa(lev: pd.DataFrame | None = None) -> pd.DataFrame:
+    """Safra corrente estimada pela LSPA, por UF e mês, só com levantamentos já publicados.
+
+    Premissa: o levantamento do mês m sai no mês m + 1, então o mês t usa o levantamento de t − 1.
+      lspa_var_producao_pct: produção de grãos estimada para o ano do levantamento contra a estimativa final (dezembro) do ano anterior
+      lspa_revisao_3m_pct  : quanto a estimativa do mesmo ano mudou desde 3 levantamentos antes (ou desde janeiro, se for mais recente)
+    """
+    l = (pd.read_parquet(INTERM / "lspa_levantamentos.parquet") if lev is None else lev).copy()
+    l["uf"] = l["cod_uf"].astype(str).map(COD_UF)
+    l["ano"] = l["levantamento"].dt.year
+    l = l.dropna(subset=["uf"]).sort_values(["uf", "levantamento"])
+    final = l[l["levantamento"].dt.month == 12][["uf", "ano", "producao_t"]].rename(columns={"producao_t": "final_anterior"})
+    final["ano"] += 1
+    l = l.merge(final, on=["uf", "ano"], how="left")
+    base_ok = l["final_anterior"] >= PRODUCAO_MINIMA_LSPA
+    l["lspa_var_producao_pct"] = np.where(base_ok, (l["producao_t"] / l["final_anterior"] - 1) * 100, np.nan)
+    # revisão: compara com o levantamento de max(m − 3, janeiro) do mesmo ano
+    ref = l["levantamento"] - pd.DateOffset(months=3)
+    ref = ref.where(ref.dt.year == l["ano"], pd.to_datetime(l["ano"].astype(str) + "-01-31"))
+    ref = ref + pd.offsets.MonthEnd(0)
+    anterior = l[["uf", "levantamento", "producao_t"]].rename(columns={"levantamento": "ref", "producao_t": "producao_ref"})
+    l = l.assign(ref=ref).merge(anterior, on=["uf", "ref"], how="left")
+    ok = l["producao_ref"] >= PRODUCAO_MINIMA_LSPA
+    l["lspa_revisao_3m_pct"] = np.where(ok, (l["producao_t"] / l["producao_ref"] - 1) * 100, np.nan)
+    l["data_base"] = l["levantamento"] + pd.offsets.MonthEnd(1)  # publicado no mês seguinte
+    return l[["data_base", "uf"] + LSPA]
 
 
 def contexto_uf(scr: pd.DataFrame) -> pd.DataFrame:
@@ -264,7 +295,7 @@ COLUNAS_BASE = (["data_base", "uf", "regiao", "segmento", "cliente", "ocupacao_a
                  "prazo_remanescente_anos", "valor_medio_operacao_mil",
                  "selic", "ipca_12m", "dolar_var12m",
                  "safra_anomalia_pct", "safra_perda_area_pct", "safra_var_producao_pct",
-                 "uf_inad_atual_pct", "uf_atraso_15_90_pct", "uf_inad_var_6m_pp"] + PERFIL + PERFIL_AMPLIADO + PRECOS + CUSTOS +
+                 "uf_inad_atual_pct", "uf_atraso_15_90_pct", "uf_inad_var_6m_pp"] + PERFIL + PERFIL_AMPLIADO + PRECOS + CUSTOS + LSPA +
                 ["alvo_inad", "peso"])
 
 
@@ -287,6 +318,7 @@ def _contexto(base: pd.DataFrame, scr: pd.DataFrame) -> pd.DataFrame:
                       on=["uf", "ano_safra"], how="left")
     base = base.merge(precos_por_uf(), on=["data_base", "uf"], how="left")
     base = base.merge(custos_por_uf(), on=["data_base", "uf"], how="left")
+    base = base.merge(variaveis_lspa(), on=["data_base", "uf"], how="left")
 
     base["regiao"] = base["uf"].map(REGIAO)
     base = base.rename(columns={"cnae_ocupacao": "ocupacao_atividade"})
@@ -332,6 +364,8 @@ def contexto_atual() -> dict:
     prc = prc[prc["data_base"] == ultimo].drop(columns="data_base").set_index("uf")
     cst = custos_por_uf()
     cst = cst[cst["data_base"] == ultimo].drop(columns="data_base").set_index("uf")
+    lsp = variaveis_lspa()
+    lsp = lsp[lsp["data_base"] == ultimo].drop(columns="data_base").set_index("uf")
     return {
         "data_base": str(ultimo.date()),
         "ano_safra": int(ano_safra),
@@ -344,7 +378,10 @@ def contexto_atual() -> dict:
                        for k, v in (prc.loc[uf] if uf in prc.index else pd.Series(dtype=float)).items()},
                     **{c: None for c in CUSTOS},
                     **{k: (None if pd.isna(v) else float(v))
-                       for k, v in (cst.loc[uf] if uf in cst.index else pd.Series(dtype=float)).items()}}
+                       for k, v in (cst.loc[uf] if uf in cst.index else pd.Series(dtype=float)).items()},
+                    **{c: None for c in LSPA},
+                    **{k: (None if pd.isna(v) else float(v))
+                       for k, v in (lsp.loc[uf] if uf in lsp.index else pd.Series(dtype=float)).items()}}
                for uf in ctx.index},
     }
 

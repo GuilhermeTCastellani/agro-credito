@@ -118,7 +118,15 @@ def main():
                   "teste": bruto.loc[d >= INI_TESTE, "peso"].to_numpy()}
     del bruto, d
     prev = ic.carregar_previsoes(janelas)
-    p = o.combinar_ensembles(prev, janelas)["previsoes"]["ensemble_empilhado"]
+    caminho = raiz / "modelos" / "metadados.json"
+    combinacao = json.loads(caminho.read_text(encoding="utf-8")).get("producao", {}).get("combinacao", "empilhado")
+    if combinacao == "media_logit":  # média simples das log-chances dos quatro modelos, sem pesos ajustados
+        from modelo import logit
+        p = {j: 1 / (1 + np.exp(-np.mean([logit(prev[n][j]) for n in prev], axis=0))) for j in ("val1", "val2", "teste")}
+        nota_pesos = "a média não tem pesos ajustados, então só a val1 (calibração) não é totalmente fora da amostra"
+    else:
+        p = o.combinar_ensembles(prev, janelas)["previsoes"]["ensemble_empilhado"]
+        nota_pesos = "os pesos do empilhamento, da val2, então essas duas janelas não são totalmente fora da amostra"
     v1 = janelas["val1"]
     y1, w1 = v1["alvo_inad"].to_numpy(), v1["peso"].to_numpy()
     metodo, _ = escolher_calibrador(p["val1"], y1, w1, v1["data_base"])
@@ -139,7 +147,6 @@ def main():
     proj = recentes[["data_base", "uf", "peso"]].assign(
         previsto=carregar_modelo(raiz).prever(recentes), atual=recentes["perfil_inad_atual_pct"] / 100, janela="projecao")
     serie_proj = acompanhamento(proj)
-    caminho = raiz / "modelos" / "metadados.json"
     meta = json.loads(caminho.read_text(encoding="utf-8"))
     meta["segmentos_teste"] = {"modelo": meta.get("modelo_escolhido"), "regra": "previsto >= limite", "linhas": linhas}
     meta["projecao"] = {"modelo": meta.get("modelo_escolhido"), "datas_base": [str(d.date()) for d in sorted(recentes["data_base"].unique())],
@@ -147,9 +154,8 @@ def main():
                                 "ainda sem resultado; pesa pela carteira atual do perfil, sem teto",
                         "linhas": serie_proj}
     meta["acompanhamento"] = {"modelo": meta.get("modelo_escolhido"), "calibracao": metodo,
-                              "nota": "modelos treinados antes de cada janela (val1, val2 e teste); a calibração vem da val1 e "
-                                      "os pesos do empilhamento, da val2, então essas duas janelas não são totalmente fora da amostra; "
-                                      "pesa pela carteira no mês do alvo, sem o teto do percentil 99",
+                              "nota": "modelos treinados antes de cada janela (val1, val2 e teste); a calibração vem da val1; "
+                                      + nota_pesos + "; pesa pela carteira no mês do alvo, sem o teto do percentil 99",
                               "linhas": serie}
     caminho.write_text(json.dumps(meta, ensure_ascii=False, indent=1, default=float), encoding="utf-8")
     for r in linhas:

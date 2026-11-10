@@ -36,7 +36,8 @@ BASE = RAIZ / "dados" / "processados" / "base_modelagem.parquet"
 HIPERPARAMETROS = RAIZ / "modelos" / "hiperparametros_ensemble.json"
 MODELOS = ("xgboost", "catboost", "random_forest", "lightgbm")
 # as duas primeiras origens só geram histórico para as formas móveis; a avaliação começa em mar/2025
-ORIGENS = ("2024-03-31", "2024-06-30", "2024-09-30", "2024-12-31", "2025-03-31", "2025-06-30", "2025-09-30", "2025-12-31")
+ORIGENS = ("2024-03-31", "2024-06-30", "2024-09-30", "2024-12-31", "2025-03-31", "2025-06-30", "2025-09-30", "2025-12-31",
+           "2026-03-31")  # mar/2026 entrou com o SCR de set/2026; prevê só mar, o único mês da origem com resultado
 INICIO_AVALIACAO = "2025-03-31"
 HORIZONTE = 6
 MESES_POR_ORIGEM = 3
@@ -65,9 +66,10 @@ def treino_da_origem(df: pd.DataFrame, mascara: np.ndarray) -> pd.DataFrame:
 
 # ------------------------------------------------------------------ parte 1: Colab
 def rodar(caminho_base=BASE, pasta=RAIZ / "modelos" / "backtest", modelos=MODELOS, origens=ORIGENS, gpu: bool = False,
-          hiperparametros=HIPERPARAMETROS) -> pd.DataFrame:
+          hiperparametros=HIPERPARAMETROS, lspa: bool = False) -> pd.DataFrame:
     """Treina e prevê cada origem e modelo; salva `<origem>_<modelo>.npz` com as linhas da base e as previsões."""
     import otimizacao as o
+    o.definir_variaveis(lspa)
     pasta = Path(pasta)
     pasta.mkdir(parents=True, exist_ok=True)
     params = json.loads(Path(hiperparametros).read_text(encoding="utf-8"))["params"]
@@ -91,7 +93,8 @@ def rodar(caminho_base=BASE, pasta=RAIZ / "modelos" / "backtest", modelos=MODELO
             segundos = time.time() - t0
             temporario = pasta / f"{origem[:7]}_{modelo}.tmp.npz"
             np.savez_compressed(temporario, linha=linhas, p=p, segundos=np.float32(segundos),
-                                corte_treino=str(fim_do_mes(origem, -HORIZONTE).date()), linhas_treino=np.int64(len(treino)))
+                                corte_treino=str(fim_do_mes(origem, -HORIZONTE).date()), linhas_treino=np.int64(len(treino)),
+                                linhas_base=np.int64(len(df)), lspa=np.bool_(lspa))
             temporario.replace(arquivo)
             tempos.append({"origem": origem[:7], "modelo": modelo, "segundos": round(segundos), "linhas_treino": len(treino)})
             print(f"{origem[:7]} {modelo}: {segundos:.0f}s, treino {len(treino):,} linhas, previsão {len(prever):,}", flush=True)
@@ -112,7 +115,10 @@ def carregar_previsoes(pasta, n_linhas: int, modelos=MODELOS, origens=ORIGENS) -
         for modelo in modelos:
             with np.load(Path(pasta) / f"{origem[:7]}_{modelo}.npz") as z:
                 linha, p = z["linha"], z["p"].astype(float)
+                gerada_com = int(z["linhas_base"]) if "linhas_base" in z else None
             assert linha.max() < n_linhas, f"{origem} {modelo}: linha fora da base; a base mudou depois do backtest?"
+            # sem esta trava, uma base com mais meses desalinharia as linhas em silêncio
+            assert gerada_com in (None, n_linhas), f"{origem} {modelo}: gerado com {gerada_com} linhas, a base tem {n_linhas}"
             if "linha" in cols:
                 assert np.array_equal(cols["linha"], linha), f"{origem}: linhas diferentes entre os modelos"
             cols["linha"], cols[modelo] = linha, p
@@ -243,6 +249,34 @@ def analisar(pasta=RAIZ / "modelos" / "backtest", caminho_base=BASE) -> dict:
     return saida
 
 
+def medir_media(pasta, caminho_base=BASE, origens=ORIGENS) -> dict:
+    """Erro de nível, PR-AUC, AUC e alertas da média simples nas origens de avaliação."""
+    base = pd.read_parquet(caminho_base)
+    base["peso_teto"] = base["peso"].clip(upper=base["peso"].quantile(0.99))
+    prev = carregar_previsoes(pasta, len(base), origens=origens)
+    dados = base.iloc[prev["linha"].to_numpy()].reset_index(drop=True)
+    dados["origem"] = prev["origem"].to_numpy()
+    from modelo import logit
+    media = sigmoide(np.mean([logit(prev[m].to_numpy()) for m in MODELOS], axis=0))
+    return avaliar(dados, pd.DataFrame({"media": media}))["media"]
+
+
+def comparar_lspa(pasta_sem, pasta_com, caminho_base=BASE, origens=ORIGENS) -> dict:
+    """Regra fixada em 2026-11-10, antes de ver o resultado: a LSPA entra se a PR-AUC da média subir no backtest, sem piorar o
+    erro de nível mais de 0,1 p.p. nem o F1 do alerta crítico (>= 10%) mais de 0,01."""
+    sem, com = medir_media(pasta_sem, caminho_base, origens), medir_media(pasta_com, caminho_base, origens)
+    usar = (com["pr_auc"] > sem["pr_auc"] and com["erro_nivel_abs_pp"] <= sem["erro_nivel_abs_pp"] + 0.1
+            and com["alertas"]["10%"]["f1"] >= sem["alertas"]["10%"]["f1"] - TOLERANCIA)
+    for nome, r in (("sem LSPA", sem), ("com LSPA", com)):
+        print(f"{nome:9s} erro de nível {r['erro_nivel_abs_pp']:.2f} p.p. (viés {r['vies_nivel_pp']:+.2f}) | PR-AUC {r['pr_auc']:.4f} | "
+              f"AUC {r['auc']:.4f} | F1 >=10% {r['alertas']['10%']['f1']:.3f} | F1 >=5% {r['alertas']['5%']['f1']:.3f}")
+    print("LSPA entra" if usar else "LSPA fica de fora", "pela regra fixada antes")
+    return {"usar_lspa": bool(usar), "regra": " ".join(comparar_lspa.__doc__.split()), "sem": sem, "com": com}
+
+
 if __name__ == "__main__":
     sys.path.insert(0, str(RAIZ / "src"))
-    analisar(Path(sys.argv[1]) if len(sys.argv) > 1 else RAIZ / "modelos" / "backtest")
+    if len(sys.argv) > 2:  # python src/backtest.py <pasta sem LSPA> <pasta com LSPA>
+        comparar_lspa(Path(sys.argv[1]), Path(sys.argv[2]))
+    else:
+        analisar(Path(sys.argv[1]) if len(sys.argv) > 1 else RAIZ / "modelos" / "backtest")

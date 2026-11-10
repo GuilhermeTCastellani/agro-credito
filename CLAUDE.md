@@ -6,7 +6,7 @@ PoC do Trabalho de IA: estima a probabilidade de inadimplência (atraso > 90 dia
 
 Responda em português do Brasil. **Nunca faça commit nem push sem pedido explícito.**
 
-## Estado atual (2026-11-09)
+## Estado atual (2026-11-10)
 
 - **Produto principal (decidido em 2026-11-09):** previsão por **perfil** em dois níveis de alerta, pela inadimplência prevista em 6 meses:
   **crítico** a partir de 10% e **atenção** de 5% a 10% (`LIMITE_CRITICO`, `LIMITE_ATENCAO` e `nivel_alerta` em `src/segmentos.py`). No teste,
@@ -19,13 +19,17 @@ Responda em português do Brasil. **Nunca faça commit nem push sem pedido expl�
 - **Dashboard:** a 1ª aba é "Perfis em alerta" (contagem por nível, medição do teste, lista filtrável e segmentos UF × finalidade como visão
   agregada); "Avaliar perfil" dá o veredito crítico, atenção ou normal, e o lote tem a coluna `nivel_alerta`; a aba de desempenho abre com a
   medição por perfil.
-- **Modelo em produção:** ensemble empilhado (XGBoost, CatBoost, Random Forest e LightGBM), com buscas do Optuna pela PR-AUC
-  (50 tentativas por modelo) e treino final no Colab Pro (L4). Instalado por `src/montar_ensemble.py` em `modelos/ensemble/final/`;
-  `metadados.json` tem `formato: ensemble` e `src/modelo.py:carregar_modelo` decide qual modelo o dashboard abre.
-- **Teste:** PR-AUC 0,269, precisão 0,402, recall 0,205, F1 0,272, AUC 0,817, Brier 0,0518. A escolha foi feita no teste, por orientação
-  do professor (PR-AUC, precisão, recall e F1); os números são otimistas até virem meses novos do Banco Central.
-- **Produção:** calibração isotônica, fatia 8,9%, limiar 32,26%. Prevê 11,2% de inadimplência para ago/2026, contra 7,2% hoje.
-- **SHAP do ensemble:** soma as explicações dos componentes com os pesos do empilhamento; o Random Forest usa o SHAP aproximado
+- **Modelo em produção (trocado em 2026-11-10, decisão do usuário após o backtest):** **média simples das log-chances** de XGBoost,
+  CatBoost, Random Forest e LightGBM (peso 0,25, intercepto 0, sem calibrador), nome `Ensemble média (XGBoost, CatBoost, Random Forest e
+  LightGBM)`. Componentes do Colab Pro (L4) em `modelos/ensemble/final/` (instalados por `src/montar_ensemble.py`); o resumo da média foi
+  posto lá por `src/instalar_media.py`, e `metadados.json` tem `producao.combinacao = media_logit` e `criterio_escolha =
+  backtest_erro_de_nivel` (o `src/segmentos.py` e o `app.py` leem isso). Backup do empilhado em `modelos/backup_antes_media/`.
+- **Teste (média):** PR-AUC 0,271, precisão 0,409, recall 0,199, F1 0,268, AUC 0,817, Brier 0,0518 (empilhado: 0,269; 0,402; 0,205;
+  0,272; 0,817; 0,0518). Os modelos foram escolhidos no teste, por orientação do professor; os números são otimistas.
+- **Produção:** sem calibrador, fatia 9,1%, limiar 21,82%. Prevê 8,8% para fev/2027 (perfis de ago/2026), contra 7,2% hoje; projeção
+  7,4% (set/2026) a 8,8% (fev/2027). Alertas em ago/2026: 10.411 críticos (31,9% da carteira), 3.171 em atenção (19,5%), 8.528 normais.
+  Por perfil no teste: ≥ 10% F1 0,657 (precisão 0,691, recall 0,627), ≥ 5% F1 0,789, ≥ 20% F1 0,501; segmentos ≥ 10%: 0,767 contando, 0,607 em reais.
+- **SHAP do ensemble:** soma as explicações dos componentes com os pesos (0,25 cada); o Random Forest usa o SHAP aproximado
   (o exato leva ~1 s por linha). Erro da soma até 0,28 em log-chance (p95).
 - **Voltar ao modelo anterior:** `python src/trocar_criterio.py f1_auc` (o backup está em `modelos/backup_antes_ensemble/`).
 - **Checagem fora do teste (2026-11-09):** a validação 2 não serve para escolher, porque definiu os hiperparâmetros (Optuna) e os pesos do
@@ -38,7 +42,7 @@ Responda em português do Brasil. **Nunca faça commit nem push sem pedido expl�
   7,2%). Os números por UF a seguir vieram de uma análise com o teto do percentil 99, que puxa o nível para cima. Superestimações maiores: RS de jul/2024 a fev/2025 (0,4–0,6 p.p.,
   logo após as enchentes, o que sugere prorrogações) e UFs de grãos em fev–abr de 2025 e 2026 (GO até 1,4 p.p.; MT, MS, SP, SC), na colheita, o que
   sugere safra corrente ou sazonalidade. Subestima de forma sistemática MA, TO, GO, MS, MT e PI, e a finalidade comercialização (prevista 6,2%, real 8,9%).
-- **Nível inflado da produção e candidata média simples (2026-11-09 à noite, aguardando decisão do usuário):** os pesos do
+- **Nível inflado da produção e candidata média simples (2026-11-09 à noite; resolvido em 2026-11-10 com a troca para a média):** os pesos do
   empilhamento (val2, 2024; soma 1,12, intercepto +0,56) amplificam o nível dos componentes de produção, que acertam sozinhos. Reajustar os
   pesos com dados recentes piora (soma 1,4–1,7), porque as previsões fora da amostra vêm de modelos defasados numa alta. `src/comparar_media.py`
   compara sem trocar o modelo ativo e grava `modelos/ensemble/media/` (`ensemble.joblib` só com o resumo: pesos 0,25 nas log-chances, intercepto 0,
@@ -54,6 +58,10 @@ Responda em português do Brasil. **Nunca faça commit nem push sem pedido expl�
   F1 ≥ 10% até 0,01 abaixo do empilhado fixo. Colab: `notebooks/backtest_colab.ipynb` (piloto de 1 origem, depois as 8; salva em
   `MyDrive/agro-credito/progresso/backtest`). PC: baixar `backtest.zip`, extrair os .npz em `modelos/backtest/` e rodar `python src/backtest.py`.
   Precisa de commit e push antes do Colab. A LSPA fica para depois, se der tempo.
+  **Resultado (2026-11-10, origens mar/2025–dez/2025, `modelos/backtest/resultados.json`):** vence a **média** (erro abs. de nível 1,14 p.p.,
+  viés −0,24, pior −1,71; PR-AUC 0,2956, AUC 0,818, F1 ≥ 10% 0,658, F1 ≥ 5% 0,788) contra o empilhado fixo (1,75; +1,17; +3,40; 0,2955; 0,818;
+  0,666; 0,780). Empilhado móvel, ajuste de nível móvel e as calibrações móveis ficam piores em nível e em ordenação. O usuário aprovou a
+  troca e a média entrou em produção no mesmo dia. Dashboard e README atualizados; **slides ainda não**.
 - **Próximo passo:** conferir o nível previsto quando vierem meses novos do Banco Central; ele decide quantos perfis ficam em alerta.
   Segmento ≥ 10% no teste: F1 0,754 contando segmentos e 0,557 pesando por reais.
 - **Git:** esta pasta tem repositório próprio e privado (`GuilhermeTCastellani/agro-credito`). A pasta do usuário tem outro `.git`, de outro
@@ -61,7 +69,28 @@ Responda em português do Brasil. **Nunca faça commit nem push sem pedido expl�
 - Este PC tem só 7,4 GB de RAM: feche programas antes de treinar. O Colab do usuário agora é Pro, numa conta pessoal; o progresso fica em
   `MyDrive/agro-credito/progresso`, e o secret `GITHUB_TOKEN` precisa existir na conta usada.
 
-### Retomada (parou em 2026-11-05 à noite)
+### Retomada (parou em 2026-11-10 à noite)
+
+- **Apresentação em 2026-11-19**, grupo de 6, slides + demonstração ao vivo. Deck: https://claude.ai/artifact/LKgKTSATgyZBpZmezjAvZM
+  (17 slides, fonte em `apresentacao/project/`, fora do Git). Os slides ainda mostram o empilhado (projeção 11,2%, salto no gráfico): só mudam
+  depois do backtest e da decisão do usuário.
+- **Onde parou:** commits `3e07918` (produto por perfil, previsto × real, projeção, comparação da média) e `0bf4299` (backtest) enviados ao GitHub.
+  No Colab, o piloto rodou a origem 2024-03 (XGBoost 25 s, CatBoost 20 s, RF 14 s, LightGBM 93 s; 427 mil linhas de treino), então os 4 arquivos dela
+  devem estar em `MyDrive/agro-credito/progresso/backtest`. Estimativa das 8 origens: 25–40 min. A célula "Todas as origens" **não funcionou**
+  por um motivo que o usuário ainda não descreveu: amanhã, pedir a mensagem de erro ou o que aconteceu (sessão caiu, GPU indisponível, erro de
+  memória, Drive desmontado) antes de mexer em código.
+- **Depois do backtest:** baixar `backtest.zip` para Downloads, extrair os .npz em `modelos/backtest/`, rodar `python src/backtest.py`, mostrar a
+  tabela e o vencedor pela regra; o usuário decide se troca o modelo de produção (a média simples já está pronta em `modelos/ensemble/media/`) e se
+  atualiza dashboard, README e slides.
+- **Modelo ativo:** a média simples desde 2026-11-10 (veja acima). Dashboard parado. Os números do "Produto principal" e dos
+  "Problemas conhecidos" mais abaixo ainda são do empilhado; os da média estão na linha "Produção".
+- **Retreino com LSPA e SCR de set/2026 (decidido em 2026-11-10):** o BCB atualizou `scrdata_2026.zip` em 05/11 (traz set/2026).
+  LSPA por levantamento (tabela 6588 tem 241 períodos, 2006-09 a 2026-09), premissa: levantamento do mês m publicado em m+1.
+  Variáveis por UF: `lspa_var_producao_pct` (grãos estimados no ano corrente / estimativa final do ano anterior) e
+  `lspa_revisao_3m_pct` (revisão da estimativa do ano nos últimos 3 levantamentos). **Regra fixada antes de ver resultado:** a LSPA
+  entra se a PR-AUC subir no backtest com a média, sem piorar o erro de nível mais de 0,1 p.p. nem o F1 ≥ 10% mais de 0,01.
+  Conferir também a projeção da média para set/2026 (7,4%) contra o real. Depois, atualizar os slides.
+- **Da sessão anterior (2026-11-05):**
 
 - **Enviado ao professor:** `docs/resultados.xlsx` (renomeada pelo usuário; gerada por um script temporário; abas: método e limites, comparação no
   teste com posições em fórmula, intervalos 95%, pessoa física, segmentos críticos, hiperparâmetros). Aguardando as respostas às

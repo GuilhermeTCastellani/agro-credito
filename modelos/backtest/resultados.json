@@ -1,0 +1,646 @@
+{
+ "gerado_em": "2026-11-10T19:02:39",
+ "origens": [
+  "2024-03-31",
+  "2024-06-30",
+  "2024-09-30",
+  "2024-12-31",
+  "2025-03-31",
+  "2025-06-30",
+  "2025-09-30",
+  "2025-12-31"
+ ],
+ "inicio_avaliacao": "2025-03-31",
+ "regra": "vence o menor erro absoluto médio de nível (Brasil, por mês do alvo, nas origens de\navaliação), desde que a PR-AUC e o F1 do nível crítico não caiam mais de 0,01 em relação ao empilhamento fixo (o de produção).\nO período avaliado coincide com o teste, que já foi visto: a pergunta aqui é qual procedimento de produção funciona, e a\nconfirmação limpa continua vindo dos meses novos do Banco Central.",
+ "vencedor": "media",
+ "resultados": {
+  "empilhado_fixo": {
+   "erro_nivel_abs_pp": 1.753712145863818,
+   "vies_nivel_pp": 1.1667018654486163,
+   "maior_erro_pp": 3.3997336082315055,
+   "erro_p10_pp": -0.8876313477971398,
+   "erro_p90_pp": 3.2828998072230875,
+   "pr_auc": 0.29551611291837987,
+   "auc": 0.8182636933909924,
+   "alertas": {
+    "5%": {
+     "precisao": 0.6963173087765692,
+     "recall": 0.887325684007794,
+     "f1": 0.7803024230989245,
+     "prevalencia": 0.34912019408329026,
+     "sinalizados": 0.44488814382652536
+    },
+    "10%": {
+     "precisao": 0.5780558740532081,
+     "recall": 0.7856767601938961,
+     "f1": 0.6660617410360835,
+     "prevalencia": 0.18333549600470514,
+     "sinalizados": 0.24918428303396
+    }
+   },
+   "por_mes": [
+    {
+     "mes_alvo": "2025-09",
+     "real_pct": 4.3111,
+     "previsto_pct": 3.4699,
+     "erro_pp": -0.8412
+    },
+    {
+     "mes_alvo": "2025-10",
+     "real_pct": 4.9216,
+     "previsto_pct": 4.0288,
+     "erro_pp": -0.8928
+    },
+    {
+     "mes_alvo": "2025-11",
+     "real_pct": 5.302,
+     "previsto_pct": 4.3485,
+     "erro_pp": -0.9535
+    },
+    {
+     "mes_alvo": "2025-12",
+     "real_pct": 5.102,
+     "previsto_pct": 4.3843,
+     "erro_pp": -0.7177
+    },
+    {
+     "mes_alvo": "2026-01",
+     "real_pct": 5.7861,
+     "previsto_pct": 5.6693,
+     "erro_pp": -0.1168
+    },
+    {
+     "mes_alvo": "2026-02",
+     "real_pct": 5.9444,
+     "previsto_pct": 6.4876,
+     "erro_pp": 0.5433
+    },
+    {
+     "mes_alvo": "2026-03",
+     "real_pct": 5.4819,
+     "previsto_pct": 7.9317,
+     "erro_pp": 2.4498
+    },
+    {
+     "mes_alvo": "2026-04",
+     "real_pct": 5.7031,
+     "previsto_pct": 8.1556,
+     "erro_pp": 2.4526
+    },
+    {
+     "mes_alvo": "2026-05",
+     "real_pct": 5.7915,
+     "previsto_pct": 8.1496,
+     "erro_pp": 2.3581
+    },
+    {
+     "mes_alvo": "2026-06",
+     "real_pct": 5.6214,
+     "previsto_pct": 8.9351,
+     "erro_pp": 3.3137
+    },
+    {
+     "mes_alvo": "2026-07",
+     "real_pct": 6.5173,
+     "previsto_pct": 9.917,
+     "erro_pp": 3.3997
+    },
+    {
+     "mes_alvo": "2026-08",
+     "real_pct": 7.2275,
+     "previsto_pct": 10.2327,
+     "erro_pp": 3.0053
+    }
+   ]
+  },
+  "media": {
+   "erro_nivel_abs_pp": 1.1354104424114908,
+   "vies_nivel_pp": -0.23807701079832663,
+   "maior_erro_pp": -1.7130256562334432,
+   "erro_p10_pp": -1.5822819134396693,
+   "erro_p90_pp": 1.1610153927890798,
+   "pr_auc": 0.2956044121029804,
+   "auc": 0.8180157403033751,
+   "alertas": {
+    "5%": {
+     "precisao": 0.7487643975065965,
+     "recall": 0.8313751789970445,
+     "f1": 0.787910314076266,
+     "prevalencia": 0.34912019408329026,
+     "sinalizados": 0.38763844116255713
+    },
+    "10%": {
+     "precisao": 0.6650442885874356,
+     "recall": 0.6508058074059665,
+     "f1": 0.6578480124943393,
+     "prevalencia": 0.18333549600470514,
+     "sinalizados": 0.17941031529936766
+    }
+   },
+   "por_mes": [
+    {
+     "mes_alvo": "2025-09",
+     "real_pct": 4.3111,
+     "previsto_pct": 2.9035,
+     "erro_pp": -1.4076
+    },
+    {
+     "mes_alvo": "2025-10",
+     "real_pct": 4.9216,
+     "previsto_pct": 3.3306,
+     "erro_pp": -1.591
+    },
+    {
+     "mes_alvo": "2025-11",
+     "real_pct": 5.302,
+     "previsto_pct": 3.589,
+     "erro_pp": -1.713
+    },
+    {
+     "mes_alvo": "2025-12",
+     "real_pct": 5.102,
+     "previsto_pct": 3.5982,
+     "erro_pp": -1.5038
+    },
+    {
+     "mes_alvo": "2026-01",
+     "real_pct": 5.7861,
+     "previsto_pct": 4.5548,
+     "erro_pp": -1.2314
+    },
+    {
+     "mes_alvo": "2026-02",
+     "real_pct": 5.9444,
+     "previsto_pct": 5.1503,
+     "erro_pp": -0.7941
+    },
+    {
+     "mes_alvo": "2026-03",
+     "real_pct": 5.4819,
+     "previsto_pct": 6.2418,
+     "erro_pp": 0.7599
+    },
+    {
+     "mes_alvo": "2026-04",
+     "real_pct": 5.7031,
+     "previsto_pct": 6.4198,
+     "erro_pp": 0.7167
+    },
+    {
+     "mes_alvo": "2026-05",
+     "real_pct": 5.7915,
+     "previsto_pct": 6.4106,
+     "erro_pp": 0.6191
+    },
+    {
+     "mes_alvo": "2026-06",
+     "real_pct": 5.6214,
+     "previsto_pct": 6.9767,
+     "erro_pp": 1.3553
+    },
+    {
+     "mes_alvo": "2026-07",
+     "real_pct": 6.5173,
+     "previsto_pct": 7.7229,
+     "erro_pp": 1.2056
+    },
+    {
+     "mes_alvo": "2026-08",
+     "real_pct": 7.2275,
+     "previsto_pct": 7.9549,
+     "erro_pp": 0.7274
+    }
+   ]
+  },
+  "empilhado_fixo_calibrado": {
+   "erro_nivel_abs_pp": 2.551758641498609,
+   "vies_nivel_pp": 1.964748361083407,
+   "maior_erro_pp": 5.452003934551177,
+   "erro_p10_pp": -0.8876313477971398,
+   "erro_p90_pp": 5.1565285030601595,
+   "pr_auc": 0.287690637578324,
+   "auc": 0.8141359799551391,
+   "alertas": {
+    "5%": {
+     "precisao": 0.6708465969556184,
+     "recall": 0.8920812547400434,
+     "f1": 0.7658058857943857,
+     "prevalencia": 0.34912019408329026,
+     "sinalizados": 0.4642545437455851
+    },
+    "10%": {
+     "precisao": 0.5367276445152476,
+     "recall": 0.7987953046497667,
+     "f1": 0.6420489031394926,
+     "prevalencia": 0.18333549600470514,
+     "sinalizados": 0.2728526001608516
+    }
+   },
+   "por_mes": [
+    {
+     "mes_alvo": "2025-09",
+     "real_pct": 4.3111,
+     "previsto_pct": 3.4699,
+     "erro_pp": -0.8412
+    },
+    {
+     "mes_alvo": "2025-10",
+     "real_pct": 4.9216,
+     "previsto_pct": 4.0288,
+     "erro_pp": -0.8928
+    },
+    {
+     "mes_alvo": "2025-11",
+     "real_pct": 5.302,
+     "previsto_pct": 4.3485,
+     "erro_pp": -0.9535
+    },
+    {
+     "mes_alvo": "2025-12",
+     "real_pct": 5.102,
+     "previsto_pct": 4.3843,
+     "erro_pp": -0.7177
+    },
+    {
+     "mes_alvo": "2026-01",
+     "real_pct": 5.7861,
+     "previsto_pct": 5.6693,
+     "erro_pp": -0.1168
+    },
+    {
+     "mes_alvo": "2026-02",
+     "real_pct": 5.9444,
+     "previsto_pct": 6.4876,
+     "erro_pp": 0.5433
+    },
+    {
+     "mes_alvo": "2026-03",
+     "real_pct": 5.4819,
+     "previsto_pct": 9.0954,
+     "erro_pp": 3.6134
+    },
+    {
+     "mes_alvo": "2026-04",
+     "real_pct": 5.7031,
+     "previsto_pct": 9.3572,
+     "erro_pp": 3.6542
+    },
+    {
+     "mes_alvo": "2026-05",
+     "real_pct": 5.7915,
+     "previsto_pct": 9.3505,
+     "erro_pp": 3.559
+    },
+    {
+     "mes_alvo": "2026-06",
+     "real_pct": 5.6214,
+     "previsto_pct": 10.7824,
+     "erro_pp": 5.161
+    },
+    {
+     "mes_alvo": "2026-07",
+     "real_pct": 6.5173,
+     "previsto_pct": 11.9693,
+     "erro_pp": 5.452
+    },
+    {
+     "mes_alvo": "2026-08",
+     "real_pct": 7.2275,
+     "previsto_pct": 12.3437,
+     "erro_pp": 5.1163
+    }
+   ]
+  },
+  "empilhado_movel": {
+   "erro_nivel_abs_pp": 2.135567681250806,
+   "vies_nivel_pp": 1.4347793978753138,
+   "maior_erro_pp": 4.464363237776793,
+   "erro_p10_pp": -1.0928222612617344,
+   "erro_p90_pp": 4.220839522321593,
+   "pr_auc": 0.2889660494050289,
+   "auc": 0.8153144618286002,
+   "alertas": {
+    "5%": {
+     "precisao": 0.6887672192095959,
+     "recall": 0.8821587516547819,
+     "f1": 0.7735590875034666,
+     "prevalencia": 0.34912019408329026,
+     "sinalizados": 0.44714589486912054
+    },
+    "10%": {
+     "precisao": 0.5613498221689588,
+     "recall": 0.7792080028813734,
+     "f1": 0.6525765105785954,
+     "prevalencia": 0.18333549600470514,
+     "sinalizados": 0.2544874515985763
+    }
+   },
+   "por_mes": [
+    {
+     "mes_alvo": "2025-09",
+     "real_pct": 4.3111,
+     "previsto_pct": 3.2941,
+     "erro_pp": -1.017
+    },
+    {
+     "mes_alvo": "2025-10",
+     "real_pct": 4.9216,
+     "previsto_pct": 3.8204,
+     "erro_pp": -1.1012
+    },
+    {
+     "mes_alvo": "2025-11",
+     "real_pct": 5.302,
+     "previsto_pct": 4.1235,
+     "erro_pp": -1.1786
+    },
+    {
+     "mes_alvo": "2025-12",
+     "real_pct": 5.102,
+     "previsto_pct": 4.3829,
+     "erro_pp": -0.7191
+    },
+    {
+     "mes_alvo": "2026-01",
+     "real_pct": 5.7861,
+     "previsto_pct": 5.5973,
+     "erro_pp": -0.1888
+    },
+    {
+     "mes_alvo": "2026-02",
+     "real_pct": 5.9444,
+     "previsto_pct": 6.3618,
+     "erro_pp": 0.4174
+    },
+    {
+     "mes_alvo": "2026-03",
+     "real_pct": 5.4819,
+     "previsto_pct": 8.2838,
+     "erro_pp": 2.8018
+    },
+    {
+     "mes_alvo": "2026-04",
+     "real_pct": 5.7031,
+     "previsto_pct": 8.4679,
+     "erro_pp": 2.7648
+    },
+    {
+     "mes_alvo": "2026-05",
+     "real_pct": 5.7915,
+     "previsto_pct": 8.4211,
+     "erro_pp": 2.6296
+    },
+    {
+     "mes_alvo": "2026-06",
+     "real_pct": 5.6214,
+     "previsto_pct": 9.8544,
+     "erro_pp": 4.233
+    },
+    {
+     "mes_alvo": "2026-07",
+     "real_pct": 6.5173,
+     "previsto_pct": 10.9816,
+     "erro_pp": 4.4644
+    },
+    {
+     "mes_alvo": "2026-08",
+     "real_pct": 7.2275,
+     "previsto_pct": 11.3385,
+     "erro_pp": 4.111
+    }
+   ]
+  },
+  "media_nivel_movel": {
+   "erro_nivel_abs_pp": 2.171894057913867,
+   "vies_nivel_pp": 1.2015208540270976,
+   "maior_erro_pp": 4.310480843312046,
+   "erro_p10_pp": -1.2743120576235551,
+   "erro_p90_pp": 4.180792062145863,
+   "pr_auc": 0.2851128041448245,
+   "auc": 0.81095086958154,
+   "alertas": {
+    "5%": {
+     "precisao": 0.6683481328973405,
+     "recall": 0.8746236800246172,
+     "f1": 0.7576977085864887,
+     "prevalencia": 0.34912019408329026,
+     "sinalizados": 0.4568708639856977
+    },
+    "10%": {
+     "precisao": 0.5564491810855802,
+     "recall": 0.746450474108091,
+     "f1": 0.6375959244177531,
+     "prevalencia": 0.18333549600470514,
+     "sinalizados": 0.24593596785706645
+    }
+   },
+   "por_mes": [
+    {
+     "mes_alvo": "2025-09",
+     "real_pct": 4.3111,
+     "previsto_pct": 3.1685,
+     "erro_pp": -1.1426
+    },
+    {
+     "mes_alvo": "2025-10",
+     "real_pct": 4.9216,
+     "previsto_pct": 3.6327,
+     "erro_pp": -1.289
+    },
+    {
+     "mes_alvo": "2025-11",
+     "real_pct": 5.302,
+     "previsto_pct": 3.915,
+     "erro_pp": -1.387
+    },
+    {
+     "mes_alvo": "2025-12",
+     "real_pct": 5.102,
+     "previsto_pct": 4.0182,
+     "erro_pp": -1.0837
+    },
+    {
+     "mes_alvo": "2026-01",
+     "real_pct": 5.7861,
+     "previsto_pct": 5.0764,
+     "erro_pp": -0.7097
+    },
+    {
+     "mes_alvo": "2026-02",
+     "real_pct": 5.9444,
+     "previsto_pct": 5.7341,
+     "erro_pp": -0.2103
+    },
+    {
+     "mes_alvo": "2026-03",
+     "real_pct": 5.4819,
+     "previsto_pct": 8.1171,
+     "erro_pp": 2.6352
+    },
+    {
+     "mes_alvo": "2026-04",
+     "real_pct": 5.7031,
+     "previsto_pct": 8.3454,
+     "erro_pp": 2.6423
+    },
+    {
+     "mes_alvo": "2026-05",
+     "real_pct": 5.7915,
+     "previsto_pct": 8.3325,
+     "erro_pp": 2.541
+    },
+    {
+     "mes_alvo": "2026-06",
+     "real_pct": 5.6214,
+     "previsto_pct": 9.8334,
+     "erro_pp": 4.212
+    },
+    {
+     "mes_alvo": "2026-07",
+     "real_pct": 6.5173,
+     "previsto_pct": 10.8277,
+     "erro_pp": 4.3105
+    },
+    {
+     "mes_alvo": "2026-08",
+     "real_pct": 7.2275,
+     "previsto_pct": 11.127,
+     "erro_pp": 3.8995
+    }
+   ]
+  },
+  "media_calibrada_movel": {
+   "erro_nivel_abs_pp": 2.652968102456883,
+   "vies_nivel_pp": 1.9866885757306207,
+   "maior_erro_pp": 5.583458134482834,
+   "erro_p10_pp": -1.0739364579676056,
+   "erro_p90_pp": 5.251775265188834,
+   "pr_auc": 0.28820977317650914,
+   "auc": 0.81317342607011,
+   "alertas": {
+    "5%": {
+     "precisao": 0.6708010379414598,
+     "recall": 0.8846262035305391,
+     "f1": 0.7630163079269708,
+     "prevalencia": 0.34912019408329026,
+     "sinalizados": 0.4604060733351136
+    },
+    "10%": {
+     "precisao": 0.5347642018544766,
+     "recall": 0.7941620362009346,
+     "f1": 0.6391467265384985,
+     "prevalencia": 0.18333549600470514,
+     "sinalizados": 0.27226596378383994
+    }
+   },
+   "por_mes": [
+    {
+     "mes_alvo": "2025-09",
+     "real_pct": 4.3111,
+     "previsto_pct": 3.3089,
+     "erro_pp": -1.0022
+    },
+    {
+     "mes_alvo": "2025-10",
+     "real_pct": 4.9216,
+     "previsto_pct": 3.8397,
+     "erro_pp": -1.0819
+    },
+    {
+     "mes_alvo": "2025-11",
+     "real_pct": 5.302,
+     "previsto_pct": 4.1597,
+     "erro_pp": -1.1423
+    },
+    {
+     "mes_alvo": "2025-12",
+     "real_pct": 5.102,
+     "previsto_pct": 4.3874,
+     "erro_pp": -0.7146
+    },
+    {
+     "mes_alvo": "2026-01",
+     "real_pct": 5.7861,
+     "previsto_pct": 5.7294,
+     "erro_pp": -0.0567
+    },
+    {
+     "mes_alvo": "2026-02",
+     "real_pct": 5.9444,
+     "previsto_pct": 6.5791,
+     "erro_pp": 0.6347
+    },
+    {
+     "mes_alvo": "2026-03",
+     "real_pct": 5.4819,
+     "previsto_pct": 9.1836,
+     "erro_pp": 3.7016
+    },
+    {
+     "mes_alvo": "2026-04",
+     "real_pct": 5.7031,
+     "previsto_pct": 9.4713,
+     "erro_pp": 3.7682
+    },
+    {
+     "mes_alvo": "2026-05",
+     "real_pct": 5.7915,
+     "previsto_pct": 9.4587,
+     "erro_pp": 3.6672
+    },
+    {
+     "mes_alvo": "2026-06",
+     "real_pct": 5.6214,
+     "previsto_pct": 10.8497,
+     "erro_pp": 5.2283
+    },
+    {
+     "mes_alvo": "2026-07",
+     "real_pct": 6.5173,
+     "previsto_pct": 12.1007,
+     "erro_pp": 5.5835
+    },
+    {
+     "mes_alvo": "2026-08",
+     "real_pct": 7.2275,
+     "previsto_pct": 12.4819,
+     "erro_pp": 5.2544
+    }
+   ]
+  }
+ },
+ "tempos_colab_s": {
+  "2024-03_catboost": 19.841266632080078,
+  "2024-03_lightgbm": 92.66455841064453,
+  "2024-03_random_forest": 13.77181625366211,
+  "2024-03_xgboost": 25.379444122314453,
+  "2024-06_catboost": 20.66301727294922,
+  "2024-06_lightgbm": 98.5148696899414,
+  "2024-06_random_forest": 15.138148307800293,
+  "2024-06_xgboost": 29.299819946289062,
+  "2024-09_catboost": 21.742740631103516,
+  "2024-09_lightgbm": 104.47135162353516,
+  "2024-09_random_forest": 15.842241287231445,
+  "2024-09_xgboost": 33.248451232910156,
+  "2024-12_catboost": 23.445152282714844,
+  "2024-12_lightgbm": 108.66854095458984,
+  "2024-12_random_forest": 16.64971923828125,
+  "2024-12_xgboost": 36.386817932128906,
+  "2025-03_catboost": 25.164398193359375,
+  "2025-03_lightgbm": 122.51277160644531,
+  "2025-03_random_forest": 17.835908889770508,
+  "2025-03_xgboost": 40.01695251464844,
+  "2025-06_catboost": 27.926973342895508,
+  "2025-06_lightgbm": 128.62298583984375,
+  "2025-06_random_forest": 18.242015838623047,
+  "2025-06_xgboost": 43.97036361694336,
+  "2025-09_catboost": 28.180252075195312,
+  "2025-09_lightgbm": 139.1744384765625,
+  "2025-09_random_forest": 19.235055923461914,
+  "2025-09_xgboost": 47.3624382019043,
+  "2025-12_catboost": 30.085906982421875,
+  "2025-12_lightgbm": 147.72813415527344,
+  "2025-12_random_forest": 19.878931045532227,
+  "2025-12_xgboost": 50.27482223510742
+ }
+}

@@ -158,6 +158,19 @@ def safra_por_uf() -> pd.DataFrame:
     return base
 
 
+def lspa_levantamentos() -> pd.DataFrame:
+    """Produção de grãos estimada por UF em cada levantamento mensal da LSPA (2006 em diante).
+
+    Cada levantamento estima a safra do próprio ano; guardar todos permite usar, em cada mês, só o que já estava publicado.
+    """
+    prod_l = ",".join(LSPA_PRODUTOS)
+    d = _sidra(f"t/6588/n3/all/v/35/p/all/c48/{prod_l}")
+    d["produto"] = d["D4C"].map(LSPA_PRODUTOS)
+    d["levantamento"] = pd.to_datetime(d["D3C"], format="%Y%m") + pd.offsets.MonthEnd(0)
+    d = d.rename(columns={"D1C": "cod_uf"})
+    return d.groupby(["cod_uf", "levantamento"], as_index=False)["V"].sum(min_count=1).rename(columns={"V": "producao_t"})
+
+
 # ---------------------------------------------------------------- SGS
 def serie_sgs(serie: int, ini="01/01/2014", fim="31/12/2026") -> pd.DataFrame:
     r = requests.get(URL_SGS.format(serie=serie, ini=ini, fim=fim), timeout=120)
@@ -294,6 +307,7 @@ def main():
 
     print("IBGE PAM/LSPA...")
     safra_por_uf().to_parquet(INTERM / "safra_uf.parquet", index=False)
+    lspa_levantamentos().to_parquet(INTERM / "lspa_levantamentos.parquet", index=False)
 
     print("BCB SGS (Selic, IPCA)...")
     macro_mensal().to_parquet(INTERM / "macro.parquet", index=False)
