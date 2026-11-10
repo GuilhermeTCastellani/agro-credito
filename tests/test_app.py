@@ -62,12 +62,12 @@ def test_dashboard_renderiza_sem_erro():
     assert not at.exception
     assert len(at.tabs) == 5
     textos = " ".join(md.value for md in at.markdown)
-    assert "Probabilidade de inadimplência" in textos
+    assert "Inadimplência prevista do perfil" in textos
 
 
 def test_dashboard_troca_para_pj():
     at = AppTest.from_file(str(RAIZ / "app.py"), default_timeout=120).run()
-    at.radio[0].set_value("PJ").run()
+    [r for r in at.radio if r.label == "Tipo de tomador"][0].set_value("PJ").run()
     assert not at.exception
 
 
@@ -79,12 +79,74 @@ def test_dashboard_mostra_novas_metricas():
         assert nome in colunas
 
 
-def test_aba_de_segmentos_mostra_a_lista_e_a_medicao():
+def test_aba_de_perfis_criticos_mostra_a_lista_e_a_medicao():
     at = AppTest.from_file(str(RAIZ / "app.py"), default_timeout=180).run()
     assert not at.exception
+    assert at.tabs[0].label == "Perfis em alerta"
     colunas = [c for df in at.dataframe for c in df.value.columns]
-    for nome in ["Prevista em 6 meses (%)", "Crítico", "F1 repetindo o nível atual"]:
+    for nome in ["Prevista em 6 meses (%)", "Valor em risco (R$ mi)", "Alerta", "Sinalização", "F1 repetindo o nível atual",
+                 "Limite"]:
         assert nome in colunas
-    radio = [r for r in at.radio if r.label == "Limite de inadimplência"][0]
-    radio.set_value(0.2).run()
+    rotulos = [m.label for m in at.metric]
+    for nome in ["Perfis críticos", "Perfis em atenção"]:
+        assert nome in rotulos
+    radio = [r for r in at.radio if r.label == "Mostrar"][0]
+    radio.set_value("Críticos e em atenção").run()
     assert not at.exception
+    alertas = {v for df in at.dataframe if "Alerta" in df.value.columns and "Valor em risco (R$ mi)" in df.value.columns
+               for v in df.value["Alerta"]}
+    assert alertas <= {"crítico", "atenção"}
+
+
+def test_acompanhamento_previsto_real():
+    import json
+    from segmentos import acompanhamento
+    df = pd.DataFrame({"data_base": pd.to_datetime(["2024-01-31", "2024-01-31", "2024-02-29"]), "uf": ["RS", "SP", "RS"],
+                       "submodalidade": ["Custeio"] * 3, "peso": [1.0, 3.0, 2.0], "janela": ["val1"] * 3,
+                       "real": [0.10, 0.02, 0.05], "previsto": [0.08, 0.04, 0.05], "atual": [0.05, 0.01, 0.04]})
+    s = pd.DataFrame(acompanhamento(df))
+    br_jul = s[(s["uf"] == "BR") & (s["mes_alvo"] == "2024-07")].iloc[0]
+    assert abs(br_jul["real_pct"] - 4.0) < 1e-9 and abs(br_jul["previsto_pct"] - 5.0) < 1e-9
+    assert set(s.loc[s["uf"] == "RS", "mes_alvo"]) == {"2024-07", "2024-08"}
+    meta = json.loads((RAIZ / "modelos" / "metadados.json").read_text(encoding="utf-8"))
+    assert {r["janela"] for r in meta["acompanhamento"]["linhas"]} == {"val1", "val2", "teste"}
+    proj = [r for r in meta["projecao"]["linhas"] if r["uf"] == "BR"]
+    assert len(proj) == 6 and all(r["real_pct"] is None for r in proj)
+    assert proj[0]["mes_alvo"] > max(r["mes_alvo"] for r in meta["acompanhamento"]["linhas"])
+
+
+def test_media_candidata_e_a_media_das_log_chances():
+    from modelo import ModeloEnsemble, logit
+    m = carregar_modelo(RAIZ)
+    media = ModeloEnsemble(m.componentes, {n: 0.25 for n in m.componentes}, 0.0)
+    x = _linha()
+    esperado = 1 / (1 + np.exp(-np.mean([logit(c.prever(x)) for c in m.componentes.values()], axis=0)))
+    assert abs(media.prever(x)[0] - esperado[0]) < 1e-9
+    resumo = RAIZ / "modelos" / "ensemble" / "media" / "ensemble.joblib"
+    if resumo.exists():
+        import joblib
+        info = joblib.load(resumo)  # arquivo gerado por este projeto
+        assert info["intercepto"] == 0.0 and set(info["coeficientes"].values()) == {0.25}
+        assert 0 < info["limiar"] < 1 and 0 < info["fatia_pct"] < 100
+
+
+def test_limite_principal_e_um_dos_medidos():
+    from segmentos import LIMITE_ATENCAO, LIMITE_CRITICO, LIMITE_PRINCIPAL, LIMITES
+    assert LIMITE_PRINCIPAL == LIMITE_CRITICO
+    assert LIMITE_ATENCAO in LIMITES and LIMITE_CRITICO in LIMITES
+
+
+def test_nivel_alerta_nos_limites():
+    from segmentos import nivel_alerta
+    assert list(nivel_alerta([0.0, 0.0499, 0.05, 0.0999, 0.10, 0.5])) == [
+        "normal", "normal", "atenção", "atenção", "crítico", "crítico"]
+
+
+def test_limite_principal_e_medido_no_teste():
+    import json
+    from segmentos import LIMITE_PRINCIPAL, LIMITES
+    assert LIMITE_PRINCIPAL in LIMITES
+    meta = json.loads((RAIZ / "modelos" / "metadados.json").read_text(encoding="utf-8"))
+    linhas = [r for r in meta["segmentos_teste"]["linhas"]
+              if r["nivel"] == "perfil" and abs(r["limite"] - LIMITE_PRINCIPAL) < 1e-9]
+    assert {r["pesa"] for r in linhas} == {"reais", "contagem"}

@@ -6,8 +6,19 @@ PoC do Trabalho de IA: estima a probabilidade de inadimplência (atraso > 90 dia
 
 Responda em português do Brasil. **Nunca faça commit nem push sem pedido explícito.**
 
-## Estado atual (2026-11-05)
+## Estado atual (2026-11-09)
 
+- **Produto principal (decidido em 2026-11-09):** previsão por **perfil** em dois níveis de alerta, pela inadimplência prevista em 6 meses:
+  **crítico** a partir de 10% e **atenção** de 5% a 10% (`LIMITE_CRITICO`, `LIMITE_ATENCAO` e `nivel_alerta` em `src/segmentos.py`). No teste,
+  com perfis e pesando por reais: ≥ 10% precisão 0,691, recall 0,628, F1 0,658 (0,551 repetindo o nível atual, 0,296 sinalizando tudo; 16% da
+  carteira); ≥ 5% precisão 0,729, recall 0,858, F1 0,789 (0,681 e 0,502; 39% da carteira). O F1 maior em 5% vem em parte da prevalência maior;
+  o 10% ficou como crítico porque a lista de 5% é larga demais para priorizar e 5% fica abaixo da média atual (7,2%). Em 20%: 0,493 contra
+  0,461, ganho pequeno. Medição em `metadados.json` (`segmentos_teste`), gerada por `src/segmentos.py`. Na carteira de ago/2026: 10.829 perfis
+  críticos (33% da carteira), 2.921 em atenção (20,8%) e 8.360 normais (46,2%); essa contagem depende do nível previsto, que é incerto (veja o acompanhamento abaixo). As métricas do ensemble
+  abaixo são do **modelo de base**, que ordena reais de carteira, e não se comparam com o F1 por perfil.
+- **Dashboard:** a 1ª aba é "Perfis em alerta" (contagem por nível, medição do teste, lista filtrável e segmentos UF × finalidade como visão
+  agregada); "Avaliar perfil" dá o veredito crítico, atenção ou normal, e o lote tem a coluna `nivel_alerta`; a aba de desempenho abre com a
+  medição por perfil.
 - **Modelo em produção:** ensemble empilhado (XGBoost, CatBoost, Random Forest e LightGBM), com buscas do Optuna pela PR-AUC
   (50 tentativas por modelo) e treino final no Colab Pro (L4). Instalado por `src/montar_ensemble.py` em `modelos/ensemble/final/`;
   `metadados.json` tem `formato: ensemble` e `src/modelo.py:carregar_modelo` decide qual modelo o dashboard abre.
@@ -17,12 +28,51 @@ Responda em português do Brasil. **Nunca faça commit nem push sem pedido expl�
 - **SHAP do ensemble:** soma as explicações dos componentes com os pesos do empilhamento; o Random Forest usa o SHAP aproximado
   (o exato leva ~1 s por linha). Erro da soma até 0,28 em log-chance (p95).
 - **Voltar ao modelo anterior:** `python src/trocar_criterio.py f1_auc` (o backup está em `modelos/backup_antes_ensemble/`).
-- **Próximo passo:** aba de segmentos críticos no dashboard (perfil e UF × finalidade passando de 5%, 10% ou 20%), com o ensemble.
-  Medição no teste, já feita: perfil ≥ 10% F1 0,67; segmento ≥ 10% F1 0,75 contando segmentos e 0,55 pesando por reais.
+- **Checagem fora do teste (2026-11-09):** a validação 2 não serve para escolher, porque definiu os hiperparâmetros (Optuna) e os pesos do
+  empilhamento. Na validação 1 (inadimplência 1,9%), pela posição média em PR-AUC e AUC, os quatro ensembles ficam à frente dos quatro modelos
+  sozinhos, e o empilhado empata em 1º com a média simples (PR-AUC 0,095 e AUC 0,770; diferenças entre ensembles na 3ª casa). O Random Forest,
+  com a melhor PR-AUC no teste (0,282), é o pior na validação 1. Precisão, recall e F1 não entram, porque a fatia vem da validação 1.
+- **Erros por UF e mês (2026-11-09; ensemble, val1+val2+teste, alvos jul/2024–ago/2026, calibração da val1):** quase não houve queda de
+  inadimplência que o modelo não previu (4 UF-meses, só em AM, AL e SE). No Brasil, pesando pela carteira sem teto (chave `acompanhamento`), o erro
+  troca de sinal: alto demais em jan–abr/2025 e fev–abr/2026 (até 0,6 p.p.), baixo demais em ago–dez/2025 (até 0,8 p.p.) e em ago/2026 (6,2% contra
+  7,2%). Os números por UF a seguir vieram de uma análise com o teto do percentil 99, que puxa o nível para cima. Superestimações maiores: RS de jul/2024 a fev/2025 (0,4–0,6 p.p.,
+  logo após as enchentes, o que sugere prorrogações) e UFs de grãos em fev–abr de 2025 e 2026 (GO até 1,4 p.p.; MT, MS, SP, SC), na colheita, o que
+  sugere safra corrente ou sazonalidade. Subestima de forma sistemática MA, TO, GO, MS, MT e PI, e a finalidade comercialização (prevista 6,2%, real 8,9%).
+- **Nível inflado da produção e candidata média simples (2026-11-09 à noite, aguardando decisão do usuário):** os pesos do
+  empilhamento (val2, 2024; soma 1,12, intercepto +0,56) amplificam o nível dos componentes de produção, que acertam sozinhos. Reajustar os
+  pesos com dados recentes piora (soma 1,4–1,7), porque as previsões fora da amostra vêm de modelos defasados numa alta. `src/comparar_media.py`
+  compara sem trocar o modelo ativo e grava `modelos/ensemble/media/` (`ensemble.joblib` só com o resumo: pesos 0,25 nas log-chances, intercepto 0,
+  sem calibrador, fatia 9,1%, limiar 21,82%; e `comparacao.json`). Resultados: no teste fora da amostra, média = empilhado (PR-AUC 0,2705 × 0,2691,
+  AUC 0,817, F1 ≥ 10% 0,657 × 0,658, erro de nível 0,37 p.p. nos dois); na produção, alvos set/2025–ago/2026 (dentro da amostra), viés +0,72 p.p. do
+  empilhado contra +0,03 da média; projeção fev/2027 11,2% → 8,8%, sem o salto (set/2026: 8,9% → 7,4%); alertas em ago/2026 quase iguais (crítico
+  33,0% → 31,9% da carteira; atenção 20,8% → 19,5%). Para trocar: backup de `modelos/ensemble/final/ensemble.joblib`, copiar o da `media/` por cima,
+  ajustar `metadados.json` (`producao`, `importancia_shap_global`, nome do modelo) e rodar `src/segmentos.py`. Os slides só mudam se o usuário decidir.
+- **Backtest trimestral (2026-11-10, em andamento, sem LSPA):** `src/backtest.py` simula a produção em 8 origens (mar/2024 a dez/2025): treino
+  até t − 6 meses com o teto do peso só do treino, previsão de t a t + 2, hiperparâmetros de `modelos/hiperparametros_ensemble.json` (versionado,
+  porque `modelos/colab/` é ignorado). Avalia a partir de mar/2025 seis formas de combinar (empilhado fixo, empilhado fixo + calibração móvel,
+  empilhado móvel, média, média + ajuste de nível móvel, média + calibração móvel); regra fixada antes: menor erro absoluto de nível, com PR-AUC e
+  F1 ≥ 10% até 0,01 abaixo do empilhado fixo. Colab: `notebooks/backtest_colab.ipynb` (piloto de 1 origem, depois as 8; salva em
+  `MyDrive/agro-credito/progresso/backtest`). PC: baixar `backtest.zip`, extrair os .npz em `modelos/backtest/` e rodar `python src/backtest.py`.
+  Precisa de commit e push antes do Colab. A LSPA fica para depois, se der tempo.
+- **Próximo passo:** conferir o nível previsto quando vierem meses novos do Banco Central; ele decide quantos perfis ficam em alerta.
+  Segmento ≥ 10% no teste: F1 0,754 contando segmentos e 0,557 pesando por reais.
 - **Git:** esta pasta tem repositório próprio e privado (`GuilhermeTCastellani/agro-credito`). A pasta do usuário tem outro `.git`, de outro
   projeto: confira com `git rev-parse --show-toplevel` antes de qualquer commit. Commits e push só com pedido do usuário.
 - Este PC tem só 7,4 GB de RAM: feche programas antes de treinar. O Colab do usuário agora é Pro, numa conta pessoal; o progresso fica em
   `MyDrive/agro-credito/progresso`, e o secret `GITHUB_TOKEN` precisa existir na conta usada.
+
+### Retomada (parou em 2026-11-05 à noite)
+
+- **Enviado ao professor:** `docs/resultados.xlsx` (renomeada pelo usuário; gerada por um script temporário; abas: método e limites, comparação no
+  teste com posições em fórmula, intervalos 95%, pessoa física, segmentos críticos, hiperparâmetros). Aguardando as respostas às
+  4 perguntas da aba "Método e limites": desempate pela posição média, escolha no teste, ensemble × LightGBM sozinho e
+  segmentos críticos como resultado complementar.
+- **Pessoa física no teste (ensemble):** AUC 0,777, PR-AUC 0,271, precisão 0,404, recall 0,202, F1 0,270; calibração boa de 3% a 12%,
+  subestima acima de 25% previsto (previu 32%, real 49%).
+- **Pendências:** resumo de 1 a 2 páginas para o professor, se ele pedir;
+  decidir se apaga `previsoes_*.npz` e `resultados_optuna.json` da raiz (cópias de `modelos/colab/`, ignoradas no Git);
+  `docs/resultados.xlsx` e as anotações não foram enviados ao GitHub.
+- **Dashboard:** foi encerrado por falta de memória; só subir de novo se o usuário pedir.
 
 ### Pontos em aberto
 
@@ -58,7 +108,8 @@ $env:PYTHONUTF8 = "1"
 
 | Caminho | Função |
 |---|---|
-| `app.py` | Dashboard: avaliar produtor, avaliação em lote (CSV), desempenho do modelo, dados e método |
+| `app.py` | Dashboard: perfis em alerta, avaliar perfil, avaliação em lote (CSV), desempenho do modelo, dados e método |
+| `src/segmentos.py` | Níveis de alerta (atenção 5%, crítico 10%) e medição no teste de perfis e segmentos acima de 5%, 10% e 20% |
 | `src/coleta.py` | Baixa SCR.data, IBGE PAM/LSPA, BCB SGS, Banco Mundial e Conab; extrai a carteira rural |
 | `src/features.py` | Engenharia de variáveis, alvo a 6 meses e histórico do perfil |
 | `src/modelo.py` | Pré-processamento, `Calibrador` e `ModeloRisco`; o joblib precisa deste módulo para carregar o modelo |
@@ -141,7 +192,11 @@ Tabela completa, intervalos e métricas de calibração em `modelos/metadados.js
 - **Versão sem busca melhor no teste:** XGBoost + SCR ampliado + Conab teve AUC 0,810, Brier 0,0528 e F1 0,277, contra 0,807, 0,0534 e
   0,270 do modelo em produção, com intervalos da diferença sem zero. Não troque com base no teste.
 - **Busca pelo Brier:** melhorou algumas versões e piorou outras; o ganho no teste não é consistente.
-- **Nível:** no teste, prevê 5,0% contra 6,2% (intercepto +0,24). Em produção, prevê 9,6% para ago/2026, contra 7,2% hoje, ainda sem conferência.
+- **Nível:** o ensemble errou o nível para os dois lados (série em `metadados.json`, chave `acompanhamento`, gerada por `src/segmentos.py`;
+  gráfico na aba de desempenho): alto demais em jan–abr/2025, baixo demais em ago–dez/2025 e jul–ago/2026. Em produção, prevê 11,2% para
+  ago/2026, contra 7,2% hoje, ainda sem conferência. Não diga que o nível está "inflado": a evidência recente aponta subestimação.
+  Projeção do modelo em produção (chave `projecao`, perfis de mar–ago/2026): 8,9% em set/2026 a 11,2% em fev/2027. O gráfico do previsto × real
+  pesa pela carteira sem teto (bate com a taxa oficial); as métricas por perfil (`segmentos_teste`) usam o teto do treino.
 - **Fatia instável:** 4,4% no teste, vinda da validação, e 10,6% em produção, nunca medida fora da amostra.
 - **Recall baixo no teste:** 0,230, porque a fatia vem de um período de inadimplência baixa.
 - **Risco alto:** no decil do topo do teste, previu 24,8% contra 35,5% reais.

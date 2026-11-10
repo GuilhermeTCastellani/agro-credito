@@ -178,6 +178,44 @@ else:
 MES_ALVO = (pd.Timestamp(ctx["data_base"]) + pd.DateOffset(months=meta["horizonte_meses"])).month
 CHAVES_PERFIL = ["uf", "segmento", "cliente", "ocupacao_atividade", "porte", "submodalidade", "origem", "indexador"]
 
+from segmentos import LIMITE_ATENCAO, LIMITE_CRITICO, LIMITES, agregar, nivel_alerta  # noqa: E402
+
+LIM_TXT = fmt_pct(LIMITE_CRITICO, 0)
+ATENCAO_TXT = fmt_pct(LIMITE_ATENCAO, 0)
+NOME_LIMITE = {LIMITE_ATENCAO: "atenção", LIMITE_CRITICO: "crítico"}
+
+
+def medicao(limite=LIMITE_CRITICO, nivel="perfil", pesa="reais") -> dict | None:
+    """Linha da medição no teste (`segmentos_teste`) para um limite, nível e ponderação."""
+    for r in (meta.get("segmentos_teste") or {}).get("linhas", []):
+        if r["nivel"] == nivel and r["pesa"] == pesa and abs(r["limite"] - limite) < 1e-9:
+            return r
+    return None
+
+
+def serie_acompanhamento(uf: str = "BR", chave: str = "acompanhamento") -> pd.DataFrame:
+    """Inadimplência atual, prevista e real por mês do alvo, no Brasil ou numa UF.
+
+    `chave` = "acompanhamento" (janelas com resultado conhecido) ou "projecao" (modelo em produção, meses ainda sem resultado).
+    """
+    linhas = (meta.get(chave) or {}).get("linhas", [])
+    return pd.DataFrame([r for r in linhas if r["uf"] == uf])
+
+
+def texto_nivel_incerto() -> str:
+    """Aviso sobre o nível previsto, com o erro mais recente medido no acompanhamento."""
+    s = serie_acompanhamento()
+    if s.empty:
+        return ("O nível previsto é incerto em mudanças de ciclo. Quem passa dos limites depende dele; a ordem dos perfis é "
+                "mais confiável do que a contagem.")
+    u = s.iloc[-1]
+    mes = f"{u['mes_alvo'][5:]}/{u['mes_alvo'][:4]}"
+    sentido = "abaixo" if u["previsto_pct"] < u["real_pct"] else "acima"
+    return (f"O nível previsto é incerto: no histórico, o modelo errou para cima e para baixo. No mês mais recente com resultado "
+            f"conhecido ({mes}), previu {br(u['previsto_pct'])}% e o real foi {br(u['real_pct'])}%, ou seja, ficou {sentido}. Quem "
+            "passa dos limites depende desse nível; a ordem dos perfis é mais confiável do que a contagem. O acompanhamento mês a mês "
+            "está na aba de desempenho.")
+
 
 def prever(df: pd.DataFrame) -> np.ndarray:
     return MODELO.prever(df)
@@ -237,20 +275,20 @@ st.markdown(
 )
 st.title("🌾 Risco de Crédito Rural")
 st.caption(
-    f"Probabilidade de a operação estar inadimplente (atraso > 90 dias) daqui a {meta['horizonte_meses']} meses · "
-    f"modelo **{meta['modelo_escolhido']}** treinado com dados oficiais do Banco Central (SCR.data) e IBGE · "
-    f"dados até {ctx['data_base'][:7].replace('-', '/')}"
+    f"Inadimplência prevista de cada perfil de crédito rural (atraso > 90 dias) daqui a {meta['horizonte_meses']} meses e quais "
+    f"o nível de alerta: **atenção** a partir de {ATENCAO_TXT} e **crítico** a partir de {LIM_TXT} · modelo **{meta['modelo_escolhido']}** treinado com dados oficiais do Banco Central "
+    f"(SCR.data) e IBGE · dados até {ctx['data_base'][:7].replace('-', '/')}"
 )
 
-aba_avaliar, aba_lote, aba_segmentos, aba_modelo, aba_dados = st.tabs(
-    ["Avaliar produtor", "Avaliação em lote", "Segmentos críticos", "Desempenho do modelo", "Dados e método"])
+aba_segmentos, aba_avaliar, aba_lote, aba_modelo, aba_dados = st.tabs(
+    ["Perfis em alerta", "Avaliar perfil", "Avaliação em lote", "Desempenho do modelo", "Dados e método"])
 
 # ================================================================== AVALIAR
 with aba_avaliar:
     col_form, col_res = st.columns([0.42, 0.58], gap="large")
 
     with col_form:
-        st.subheader("Perfil do produtor")
+        st.subheader("Perfil")
         c1, c2 = st.columns(2)
         tipo = c1.radio("Tipo de tomador", ["PF", "PJ"], horizontal=True,
                         format_func=lambda x: "Pessoa física" if x == "PF" else "Pessoa jurídica")
@@ -350,8 +388,8 @@ with aba_avaliar:
         ref_uf = uf_inad / 100
 
         k1, k2, k3 = st.columns(3)
-        k1.markdown(f"<div class='kpi'><p>Probabilidade de inadimplência</p><h1 style='color:{cor}'>{fmt_pct(p)}</h1></div>",
-                    unsafe_allow_html=True)
+        k1.markdown(f"<div class='kpi'><p>Inadimplência prevista do perfil em {meta['horizonte_meses']} meses</p>"
+                    f"<h1 style='color:{cor}'>{fmt_pct(p)}</h1></div>", unsafe_allow_html=True)
         k2.markdown(f"<div class='kpi'><p>Score (0–1000)</p><h1>{sc}</h1></div>", unsafe_allow_html=True)
         k3.markdown(f"<div class='kpi'><p>Faixa de risco</p><h1 style='color:{cor}'>{letra}</h1><p>{nome_faixa}</p></div>",
                     unsafe_allow_html=True)
@@ -361,12 +399,21 @@ with aba_avaliar:
             rel_txt = f"{rel:.1f}".replace(".", ",")
             st.markdown(f"Para comparação, a carteira rural de **{uf}** tem hoje **{fmt_pct(ref_uf)}** inadimplente. "
                         f"Este perfil está em **{rel_txt}×** esse nível.")
-        if p >= MODELO.limiar:
-            st.warning(f"**Sinalizado para análise:** este perfil está entre os {br(MODELO.fatia_pct)}% da carteira "
-                       f"de maior risco hoje (a partir de {fmt_pct(MODELO.limiar)} de probabilidade).", icon="⚠️")
+        med = medicao()
+        med_at = medicao(LIMITE_ATENCAO)
+        h = meta["horizonte_meses"]
+        if p >= LIMITE_CRITICO:
+            st.error(f"**Perfil crítico:** a inadimplência prevista passa de {LIM_TXT} daqui a {h} meses."
+                     + (f" No teste, {fmt_pct(med['modelo']['precisao'], 0)} da carteira dos perfis críticos de fato "
+                        f"passou de {LIM_TXT}." if med else ""), icon="🚨")
+        elif p >= LIMITE_ATENCAO:
+            st.warning(f"**Perfil em atenção:** a inadimplência prevista fica entre {ATENCAO_TXT} e {LIM_TXT} daqui a {h} meses."
+                       + (f" No teste, {fmt_pct(med_at['modelo']['precisao'], 0)} da carteira dos perfis acima de {ATENCAO_TXT} "
+                          f"de fato passou de {ATENCAO_TXT}." if med_at else ""), icon="⚠️")
         else:
-            st.success(f"**Não sinalizado:** este perfil está fora dos {br(MODELO.fatia_pct)}% da carteira "
-                       f"de maior risco hoje (a partir de {fmt_pct(MODELO.limiar)} de probabilidade).", icon="✅")
+            st.success(f"**Perfil normal:** a inadimplência prevista fica abaixo de {ATENCAO_TXT} daqui a {h} meses.", icon="✅")
+        st.caption(f"Na ordenação da carteira de hoje, este perfil {'está' if p >= MODELO.limiar else 'não está'} entre os "
+                   f"{br(MODELO.fatia_pct)}% de maior risco (a partir de {fmt_pct(MODELO.limiar)}).")
 
         st.subheader("O que mais pesou nesta avaliação")
         contrib = explicar(entrada).iloc[0]
@@ -412,9 +459,10 @@ with aba_avaliar:
 
 # ================================================================== LOTE
 with aba_lote:
-    st.subheader("Avaliar vários produtores de uma vez")
-    st.write("Envie um CSV com uma linha por produtor. Colunas de cenário ausentes são preenchidas "
-             "automaticamente com os dados oficiais mais recentes da UF.")
+    st.subheader("Avaliar vários perfis de uma vez")
+    st.write("Envie um CSV com uma linha por produtor ou perfil. Colunas de cenário ausentes são preenchidas "
+             f"automaticamente com os dados oficiais mais recentes da UF. A coluna `nivel_alerta` traz "
+             f"crítico (a partir de {LIM_TXT}), atenção (de {ATENCAO_TXT} a {LIM_TXT}) ou normal.")
     perfil_cols = ["uf", "cliente", "ocupacao_atividade", "porte", "submodalidade", "segmento",
                    "origem", "indexador", "valor_medio_operacao_mil", "prazo_remanescente_anos"]
     modelo_csv = pd.DataFrame([
@@ -462,7 +510,7 @@ with aba_lote:
             lote["prob_inadimplencia_pct"] = (probs * 100).round(2)
             lote["score"] = [score(x) for x in probs]
             lote["faixa"] = [faixa(x)[0] for x in probs]
-            lote["sinalizado"] = ["sim" if x >= MODELO.limiar else "não" for x in probs]
+            lote["nivel_alerta"] = nivel_alerta(probs)
             # fatores do próprio perfil/operação (o cenário regional é igual para todos da mesma UF)
             CENARIO = {"uf_inad_atual_pct", "uf_atraso_15_90_pct", "uf_inad_var_6m_pp", "selic", "ipca_12m",
                        "dolar_var12m", "safra_anomalia_pct", "safra_perda_area_pct", "safra_var_producao_pct",
@@ -475,15 +523,12 @@ with aba_lote:
             lote["efeito_cenario_uf"] = [efeito_txt(sv.iloc[i][[c for c in sv.columns if c in CENARIO]].sum())
                                          for i in range(len(lote))]
             mostrar = [c for c in ["id_produtor"] if c in lote.columns] + perfil_cols[:2] + \
-                      ["prob_inadimplencia_pct", "score", "faixa", "sinalizado", "principal_fator_risco", "principal_atenuante", "efeito_cenario_uf"]
+                      ["prob_inadimplencia_pct", "nivel_alerta", "score", "faixa", "principal_fator_risco", "principal_atenuante", "efeito_cenario_uf"]
             st.dataframe(lote[mostrar], use_container_width=True, hide_index=True)
             st.download_button("Baixar resultado", lote.to_csv(index=False).encode("utf-8"),
                                "resultado_risco.csv", "text/csv")
 
-# ================================================================== SEGMENTOS
-from segmentos import LIMITES, agregar  # noqa: E402
-
-
+# ================================================================== PERFIS EM ALERTA
 @st.cache_data(show_spinner="Calculando o risco dos perfis da carteira atual...")
 def risco_carteira() -> pd.DataFrame:
     atual = pd.read_parquet(RAIZ / "dados" / "processados" / "base_atual.parquet")
@@ -491,73 +536,130 @@ def risco_carteira() -> pd.DataFrame:
 
 
 with aba_segmentos:
-    st.subheader("Segmentos críticos nos próximos 6 meses")
-    st.write("Quais segmentos (UF × finalidade) e quais perfis devem passar de um limite de inadimplência daqui a 6 meses, "
-             f"com os perfis da carteira de **{ctx['data_base'][:7].replace('-', '/')}**. Um segmento é crítico quando a "
-             "inadimplência prevista, ponderada pela carteira, passa do limite.")
-    limite = st.radio("Limite de inadimplência", LIMITES, index=1, horizontal=True, format_func=lambda x: fmt_pct(x, 0))
+    st.subheader("Perfis em alerta nos próximos 6 meses")
+    st.write("Para cada perfil da carteira rural de "
+             f"**{ctx['data_base'][:7].replace('-', '/')}**, o modelo prevê a inadimplência daqui a {meta['horizonte_meses']} meses: "
+             "a fração dos reais emprestados ao perfil que deve estar com atraso acima de 90 dias. O perfil é **crítico** a partir de "
+             f"{LIM_TXT}, fica em **atenção** de {ATENCAO_TXT} a {LIM_TXT} e é normal abaixo disso. Ele combina UF, tipo de instituição, "
+             "PF/PJ, ocupação ou atividade, porte, finalidade, origem dos recursos e indexador.")
     carteira = risco_carteira()
-    seg = agregar(carteira, mes=None).sort_values("previsto", ascending=False)
-    seg_crit = seg[seg["previsto"] >= limite]
-    perf_crit = carteira[carteira["previsto"] >= limite]
-    k1, k2, k3 = st.columns(3)
-    k1.metric("Segmentos críticos", f"{len(seg_crit)} de {len(seg)}")
-    k2.metric("Carteira nesses segmentos", fmt_pct(seg_crit["peso"].sum() / seg["peso"].sum(), 1))
-    k3.metric("Perfis críticos", f"{fmt_int(len(perf_crit))} de {fmt_int(len(carteira))}")
+    carteira = carteira.assign(alerta=nivel_alerta(carteira["previsto"]))
+    total = carteira["peso"].sum()
     previsto_carteira = np.average(carteira["previsto"], weights=carteira["peso"])
     atual_carteira = np.average(carteira["atual"], weights=carteira["peso"])
-    if previsto_carteira > 1.2 * atual_carteira:
-        st.info(f"O modelo prevê {fmt_pct(previsto_carteira, 1)} de inadimplência para a carteira daqui a 6 meses, contra "
-                f"{fmt_pct(atual_carteira, 1)} hoje. Ele está assumindo que a piora recente continua; se o ciclo estabilizar, "
-                "parte desses segmentos não chegará ao limite. Use a lista mais como ordem de prioridade do que como contagem exata.",
-                icon="ℹ️")
 
+    k1, k2, k3 = st.columns(3)
+    for col, nivel, rotulo, faixa_txt in [(k1, "crítico", "Perfis críticos", f"a partir de {LIM_TXT}"),
+                                          (k2, "atenção", "Perfis em atenção", f"de {ATENCAO_TXT} a {LIM_TXT}")]:
+        d = carteira[carteira["alerta"] == nivel]
+        col.metric(rotulo, f"{fmt_int(len(d))} de {fmt_int(len(carteira))}", help=f"Inadimplência prevista {faixa_txt}.")
+        col.caption(f"{fmt_pct(d['peso'].sum() / total, 1)} da carteira")
+    k3.metric("Inadimplência prevista da carteira", fmt_pct(previsto_carteira, 1),
+              delta=f"{br((previsto_carteira - atual_carteira) * 100, 1, sinal=True)} p.p. sobre hoje", delta_color="inverse")
+    st.info(texto_nivel_incerto(), icon="ℹ️")
+
+    linhas_med = [(f"Crítico (a partir de {LIM_TXT})", medicao(LIMITE_CRITICO)),
+                  (f"Atenção ou crítico (a partir de {ATENCAO_TXT})", medicao(LIMITE_ATENCAO))]
+    if all(r for _, r in linhas_med):
+        st.markdown("**Como essa previsão se saiu no teste (perfis, pesando por reais de carteira)**")
+        st.dataframe(pd.DataFrame([{
+            "Sinalização": nome, "Precisão": r["modelo"]["precisao"], "Recall": r["modelo"]["recall"], "F1": r["modelo"]["f1"],
+            "F1 repetindo o nível atual": r["nivel_atual"]["f1"], "F1 sinalizando tudo": r["sinalizar_tudo"]["f1"],
+            "Carteira sinalizada (%)": r["modelo"]["sinalizados"] * 100,
+        } for nome, r in linhas_med]).style.format(lambda v: br(v, 3) if isinstance(v, float) else v),
+            use_container_width=True, hide_index=True)
+        st.caption("Precisão: fração da carteira sinalizada que de fato passou do limite. Recall: fração da carteira que passou do "
+                   "limite e foi sinalizada. O F1 em 5% sai maior também porque mais carteira passa de 5%: sinalizar tudo já chega "
+                   "a 0,5 nesse limite.")
+
+    st.markdown("**Perfis em alerta com mais dinheiro em risco**")
+    mostrar = st.radio("Mostrar", ["Só críticos", "Críticos e em atenção"], horizontal=True)
+    st.caption("Ordenados pelo valor previsto de inadimplência (taxa prevista × carteira). Ordenar só pela taxa levaria ao topo "
+               "perfis muito pequenos que já estão quase todos inadimplentes.")
+    niveis = ["crítico"] if mostrar == "Só críticos" else ["crítico", "atenção"]
+    sel = carteira[carteira["alerta"].isin(niveis)]
+    sel = sel.assign(em_risco=sel["previsto"] * sel["peso"]).sort_values("em_risco", ascending=False)
+    cols_perfil = ["uf", "segmento", "cliente", "ocupacao_atividade", "porte", "submodalidade", "origem", "indexador"]
+    tabela_perfis = sel[cols_perfil].rename(columns=ROTULOS).assign(**{
+        "Alerta": sel["alerta"], "Carteira (R$ mi)": sel["peso"], "Inadimplência hoje (%)": sel["atual"] * 100,
+        "Prevista em 6 meses (%)": sel["previsto"] * 100, "Valor em risco (R$ mi)": sel["em_risco"]})
+    st.dataframe(tabela_perfis.head(50).style.format({c: (lambda v: br(v, 2)) for c in [
+        "Carteira (R$ mi)", "Inadimplência hoje (%)", "Prevista em 6 meses (%)", "Valor em risco (R$ mi)"]}),
+        use_container_width=True, hide_index=True)
+    st.download_button(f"Baixar todos os {fmt_int(len(sel))} perfis", tabela_perfis.to_csv(index=False).encode("utf-8"),
+                       "perfis_em_alerta.csv", "text/csv")
+
+    st.markdown("**Visão agregada: segmentos UF × finalidade**")
+    seg = agregar(carteira, mes=None).sort_values("previsto", ascending=False)
+    seg = seg.assign(alerta=nivel_alerta(seg["previsto"]))
+    st.caption(f"{(seg['alerta'] == 'crítico').sum()} de {len(seg)} segmentos estão críticos e {(seg['alerta'] == 'atenção').sum()} "
+               "em atenção. A inadimplência do segmento é a média dos perfis ponderada pela carteira.")
     tabela = pd.DataFrame({
-        "UF": seg["uf"], "Finalidade": seg["submodalidade"], "Carteira (R$ mi)": seg["peso"], "Perfis": seg["perfis"],
-        "Inadimplência hoje (%)": seg["atual"] * 100, "Prevista em 6 meses (%)": seg["previsto"] * 100,
-        "Crítico": np.where(seg["previsto"] >= limite, "sim", "não"),
+        "UF": seg["uf"], "Finalidade": seg["submodalidade"], "Alerta": seg["alerta"], "Carteira (R$ mi)": seg["peso"],
+        "Perfis": seg["perfis"], "Inadimplência hoje (%)": seg["atual"] * 100, "Prevista em 6 meses (%)": seg["previsto"] * 100,
     })
-    st.markdown("**Segmentos, do maior para o menor risco previsto**")
     st.dataframe(tabela.style.format({"Carteira (R$ mi)": lambda v: br(v, 1), "Inadimplência hoje (%)": lambda v: br(v, 2),
                                       "Prevista em 6 meses (%)": lambda v: br(v, 2)}),
                  use_container_width=True, hide_index=True, height=380)
+    st.download_button("Baixar todos os segmentos", tabela.to_csv(index=False).encode("utf-8"), "segmentos_em_alerta.csv", "text/csv")
 
-    st.markdown("**Perfis críticos com mais dinheiro em risco**")
-    st.caption("Ordenados pelo valor previsto de inadimplência (taxa prevista × carteira). Ordenar só pela taxa levaria ao topo "
-               "perfis muito pequenos que já estão quase todos inadimplentes.")
-    cols_perfil = ["uf", "segmento", "cliente", "ocupacao_atividade", "porte", "submodalidade", "origem", "indexador"]
-    top = perf_crit.assign(em_risco=perf_crit["previsto"] * perf_crit["peso"]).sort_values("em_risco", ascending=False).head(30)
-    st.dataframe(top[cols_perfil].assign(**{
-        "Carteira (R$ mi)": top["peso"].map(lambda v: br(v, 1)),
-        "Inadimplência hoje (%)": top["atual"].map(lambda v: br(v * 100, 2)),
-        "Prevista em 6 meses (%)": top["previsto"].map(lambda v: br(v * 100, 2)),
-        "Valor em risco (R$ mi)": top["em_risco"].map(lambda v: br(v, 1))}),
-        use_container_width=True, hide_index=True)
-    st.download_button("Baixar todos os segmentos", tabela.to_csv(index=False).encode("utf-8"), "segmentos_criticos.csv", "text/csv")
-
-    medicao = meta.get("segmentos_teste")
-    if medicao:
-        st.markdown(f"**Como essa previsão se saiu no teste (limite de {fmt_pct(limite, 0)})**")
-        linhas = [r for r in medicao["linhas"] if abs(r["limite"] - limite) < 1e-9]
-        st.dataframe(pd.DataFrame([{
-            "Nível": "Perfil" if r["nivel"] == "perfil" else "Segmento UF × finalidade",
-            "Pesa por": "reais de carteira" if r["pesa"] == "reais" else "contagem",
-            "F1 do modelo": r["modelo"]["f1"], "Precisão": r["modelo"]["precisao"], "Recall": r["modelo"]["recall"],
-            "F1 repetindo o nível atual": r["nivel_atual"]["f1"], "F1 sinalizando tudo": r["sinalizar_tudo"]["f1"],
-        } for r in linhas]).style.format(lambda v: br(v, 3) if isinstance(v, float) else v), use_container_width=True, hide_index=True)
-        perde = [r for r in linhas if r["modelo"]["f1"] < r["nivel_atual"]["f1"]]
-        if perde:
-            st.warning("Neste limite, em pelo menos uma visão a regra simples de repetir o nível atual tem F1 maior que o modelo. "
-                       "Use essa visão com cautela.", icon="⚠️")
-    st.caption("É outra pergunta, diferente da probabilidade do modelo principal: o F1 daqui não é comparável ao da aba de desempenho. "
-               "Os limites foram escolhidos depois de ver o teste, e o modelo foi escolhido no teste, então essas medidas são otimistas. "
-               f"O modelo prevê hoje {fmt_pct(np.average(carteira['previsto'], weights=carteira['peso']), 1)} de inadimplência para a "
-               f"carteira, contra {fmt_pct(np.average(carteira['atual'], weights=carteira['peso']), 1)} agora; se esse nível estiver alto, "
-               "a lista de críticos fica maior do que deveria.")
+    st.caption("Os limites foram escolhidos depois de ver o teste, e o modelo foi escolhido no teste, então essas medidas são "
+               "otimistas até serem confirmadas com meses novos do Banco Central. A medição completa, com 20%, segmentos e as "
+               "regras simples, está na aba de desempenho.")
 
 # ================================================================== MODELO
 with aba_modelo:
-    st.subheader("Comparação dos modelos — teste fora do tempo")
+    if meta.get("segmentos_teste"):
+        st.subheader("Produto principal: quais perfis passam do limite (teste)")
+        st.write(f"Um perfil ou segmento é sinalizado quando a inadimplência prevista para daqui a {meta['horizonte_meses']} meses "
+                 f"passa do limite: **{ATENCAO_TXT}** marca atenção e **{LIM_TXT}**, crítico. O modelo é comparado com duas regras simples: repetir o nível atual "
+                 "de inadimplência e sinalizar tudo.")
+        st.dataframe(pd.DataFrame([{
+            "Nível": "Perfil" if r["nivel"] == "perfil" else "Segmento UF × finalidade",
+            "Limite": fmt_pct(r["limite"], 0) + "".join(f" ({n})" for v, n in NOME_LIMITE.items() if abs(r["limite"] - v) < 1e-9),
+            "Pesa por": "reais de carteira" if r["pesa"] == "reais" else "contagem",
+            "Precisão": r["modelo"]["precisao"], "Recall": r["modelo"]["recall"], "F1 do modelo": r["modelo"]["f1"],
+            "F1 repetindo o nível atual": r["nivel_atual"]["f1"], "F1 sinalizando tudo": r["sinalizar_tudo"]["f1"],
+            "Passou do limite (%)": r["modelo"]["prevalencia"] * 100, "Sinalizado (%)": r["modelo"]["sinalizados"] * 100,
+        } for r in meta["segmentos_teste"]["linhas"]]).style.format(lambda v: br(v, 3) if isinstance(v, float) else v),
+            use_container_width=True, hide_index=True)
+        st.caption("Os limites foram escolhidos depois de ver o teste, e o modelo foi escolhido no teste: os números são otimistas "
+                   "até virem meses novos do Banco Central. O F1 desta tabela responde a outra pergunta e não se compara com o F1 "
+                   "da tabela abaixo, que mede a ordenação de reais de carteira com o alvo fracionário.")
+
+    if meta.get("acompanhamento"):
+        st.subheader("Previsto × real, mês a mês")
+        ufs = ["BR"] + sorted({r["uf"] for r in meta["acompanhamento"]["linhas"]} - {"BR"})
+        uf_sel = st.selectbox("Região", ufs, format_func=lambda u: "Brasil" if u == "BR" else u, key="uf_acompanhamento")
+        s = serie_acompanhamento(uf_sel)
+        proj = serie_acompanhamento(uf_sel, "projecao")
+        tudo = pd.concat([s, proj], ignore_index=True) if not proj.empty else s
+        fig = go.Figure()
+        fig.add_scatter(x=tudo["mes_alvo"], y=tudo["atual_pct"], name="Inadimplência 6 meses antes", mode="lines",
+                        line=dict(color="#9e9e9e", width=2, dash="dot"))
+        fig.add_scatter(x=s["mes_alvo"], y=s["previsto_pct"], name="Prevista", mode="lines+markers",
+                        line=dict(color="#ef6c00", width=3))
+        fig.add_scatter(x=s["mes_alvo"], y=s["real_pct"], name="Real", mode="lines+markers", line=dict(color="#1565c0", width=3))
+        if not proj.empty:
+            fig.add_scatter(x=proj["mes_alvo"], y=proj["previsto_pct"], name="Projeção (modelo em produção)", mode="lines+markers",
+                            line=dict(color="#c62828", width=3, dash="dash"), marker=dict(symbol="diamond", size=9))
+        inicio = {j: tudo.loc[tudo["janela"] == j, "mes_alvo"].min() for j in ("val2", "teste", "projecao")}
+        for j, rot in (("val2", "validação 2"), ("teste", "teste"), ("projecao", "projeção")):
+            if isinstance(inicio[j], str):
+                fig.add_vline(x=inicio[j], line_dash="dash", line_color="gray")
+                fig.add_annotation(x=inicio[j], y=1.02, yref="paper", text=f"início: {rot}", showarrow=False, xanchor="left")
+        fig.update_layout(height=360, xaxis_title="mês do alvo (6 meses depois da data-base)", yaxis_title="inadimplência (%)",
+                          margin=dict(l=10, r=10, t=40, b=10), legend=dict(orientation="h", y=1.15),
+                          paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+        st.plotly_chart(fig, use_container_width=True)
+        erro = s["real_pct"] - s["previsto_pct"]
+        st.caption(f"O modelo previu alto demais em {int((erro < -0.25).sum())} meses e baixo demais em {int((erro > 0.25).sum())} "
+                   f"(diferença acima de 0,25 p.p.), de {len(s)}. Médias ponderadas pela carteira. Até o teste, os modelos foram treinados "
+                   "antes de cada janela, mas a calibração vem da validação 1 e os pesos do empilhamento, da validação 2. A projeção usa o "
+                   "modelo em produção, treinado com todo o histórico e calibrado nos meses finais, aplicado aos perfis dos últimos 6 meses; "
+                   "por isso, parte do salto entre o último mês conhecido e o primeiro projetado vem da troca de modelo.")
+
+    st.subheader("Modelo de base: comparação dos modelos — teste fora do tempo")
     if meta.get("criterio_escolha") == REGRA_PROFESSOR:
         st.write(f"Treino com perfis até **{meta['treino_ate'][:7]}**, teste com perfis de **{meta['teste_desde'][:7]}** "
                  f"em diante (alvos observados 6 meses depois). Os hiperparâmetros foram buscados com o Optuna pela PR-AUC "
@@ -722,7 +824,8 @@ with aba_dados:
 {TEXTO_ESCOLHA}
 - **Calibração e sinalização:** a probabilidade é calibrada ({meta['producao']['calibracao']}) e cada mês sinaliza a fatia de maior risco da carteira,
   ambas ajustadas em previsões fora da amostra dos meses mais recentes com alvo conhecido.
-- **Saída:** probabilidade de inadimplência de uma operação com aquele perfil, no cenário informado.
+- **Saída:** inadimplência prevista de cada perfil daqui a {meta['horizonte_meses']} meses e o nível de alerta: crítico a partir
+  de {LIM_TXT}, atenção de {ATENCAO_TXT} a {LIM_TXT} e normal abaixo disso. É o produto principal: a lista de perfis em alerta da carteira.
 - **Explicabilidade:** valores SHAP do modelo final, agregados por variável original.
 
 ### Limites que o analista precisa conhecer

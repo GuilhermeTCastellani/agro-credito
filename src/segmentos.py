@@ -1,8 +1,8 @@
 """
 Segmentos críticos: quais perfis e quais segmentos UF × finalidade devem passar de um limite de inadimplência em 6 meses.
 
-É uma pergunta diferente da do modelo principal: em vez de ordenar reais de carteira, classifica perfis ou segmentos acima de
-5%, 10% ou 20%. Um perfil ou segmento é sinalizado quando a inadimplência prevista (ponderada pela exposição) passa do limite.
+É o produto principal: em vez de ordenar reais de carteira, classifica perfis (e segmentos) acima de 5%, 10% ou 20%. Os níveis
+de alerta são atenção (5% a 10%) e crítico (10% ou mais). Um perfil ou segmento é sinalizado quando a inadimplência prevista (ponderada pela exposição) passa do limite.
 A medição no teste compara com duas regras simples: sinalizar tudo e repetir o nível atual de inadimplência.
 
 Uso: python src/segmentos.py   (grava a medição em modelos/metadados.json, na chave "segmentos_teste")
@@ -16,6 +16,17 @@ import numpy as np
 import pandas as pd
 
 LIMITES = (0.05, 0.10, 0.20)
+# Produto principal: nível de alerta pela inadimplência prevista do perfil em 6 meses.
+LIMITE_ATENCAO = 0.05   # atenção: de 5% a 10%
+LIMITE_CRITICO = 0.10   # crítico: 10% ou mais
+LIMITE_PRINCIPAL = LIMITE_CRITICO
+NIVEIS_ALERTA = ("crítico", "atenção", "normal")
+
+
+def nivel_alerta(previsto) -> np.ndarray:
+    """'crítico' a partir de 10%, 'atenção' de 5% a 10% e 'normal' abaixo de 5% (inadimplência prevista, em fração)."""
+    p = np.asarray(previsto, float)
+    return np.select([p >= LIMITE_CRITICO, p >= LIMITE_ATENCAO], ["crítico", "atenção"], "normal")
 CHAVES_SEGMENTO = ["uf", "submodalidade"]
 
 
@@ -60,6 +71,33 @@ def avaliar(df: pd.DataFrame) -> list[dict]:
     return linhas
 
 
+def acompanhamento(df: pd.DataFrame, horizonte: int = 6) -> list[dict]:
+    """Inadimplência atual, prevista e real por mês do alvo, no Brasil ("BR") e em cada UF, ponderadas pela exposição.
+
+    `df` tem data_base, uf, peso, janela e real, previsto e atual (frações). O mês do alvo é `horizonte` meses depois da data-base.
+    """
+    d = df.assign(mes_alvo=(pd.to_datetime(df["data_base"]) + pd.offsets.MonthEnd(horizonte)).dt.strftime("%Y-%m"))
+    saida = []
+    for uf, g in [("BR", d)] + list(d.groupby("uf", observed=True)):
+        a = agregar(g, chaves=["mes_alvo", "janela"], mes=None).sort_values("mes_alvo")
+        saida += [{"uf": str(uf), "mes_alvo": r.mes_alvo, "janela": r.janela, "carteira": float(r.peso),
+                   "atual_pct": float(r.atual * 100), "previsto_pct": float(r.previsto * 100),
+                   "real_pct": float(r.real * 100) if "real" in a.columns else None}
+                  for r in a.itertuples()]
+    return saida
+
+
+def perfis_recentes(meses: int = 6) -> pd.DataFrame:
+    """Perfis dos últimos `meses` meses do SCR, ainda sem alvo conhecido, montados como em features.montar_atual."""
+    import features as f
+    scr = f._operacao(f.historico_perfil(f.ler_scr()))
+    ultimos = sorted(scr["data_base"].unique())[-meses:]
+    base = scr[scr["data_base"].isin(ultimos)].copy()
+    base["alvo_inad"] = np.nan
+    base["peso"] = base["carteira_ativa"] / 1e6
+    return f._contexto(base, scr)
+
+
 def main():
     import sys
     raiz = Path(__file__).resolve().parents[1]
@@ -69,20 +107,50 @@ def main():
     from modelo import Calibrador
     from treino import escolher_calibrador
 
-    janelas = o.carregar_janelas(raiz / "dados" / "processados" / "base_modelagem.parquet")
+    from treino import FIM_VAL, FIM_VAL2, INI_TESTE, INI_VAL, INI_VAL2
+    caminho_base = raiz / "dados" / "processados" / "base_modelagem.parquet"
+    janelas = o.carregar_janelas(caminho_base)
+    # o acompanhamento pesa pela carteira sem o teto do percentil 99, para o nível bater com a taxa oficial
+    bruto = pd.read_parquet(caminho_base, columns=["data_base", "peso"])
+    d = bruto["data_base"]
+    peso_bruto = {"val1": bruto.loc[(d >= INI_VAL) & (d <= FIM_VAL), "peso"].to_numpy(),
+                  "val2": bruto.loc[(d >= INI_VAL2) & (d <= FIM_VAL2), "peso"].to_numpy(),
+                  "teste": bruto.loc[d >= INI_TESTE, "peso"].to_numpy()}
+    del bruto, d
     prev = ic.carregar_previsoes(janelas)
     p = o.combinar_ensembles(prev, janelas)["previsoes"]["ensemble_empilhado"]
     v1 = janelas["val1"]
     y1, w1 = v1["alvo_inad"].to_numpy(), v1["peso"].to_numpy()
     metodo, _ = escolher_calibrador(p["val1"], y1, w1, v1["data_base"])
-    te = janelas["teste"]
-    df = te[["data_base", "peso"] + CHAVES_SEGMENTO].assign(
-        real=te["alvo_inad"], previsto=Calibrador(metodo).fit(p["val1"], y1, w1).transform(p["teste"]),
-        atual=te["perfil_inad_atual_pct"] / 100)
-    linhas = avaliar(df)
+    cal = Calibrador(metodo).fit(p["val1"], y1, w1)
+
+    def montar(jan, sem_teto=False):
+        d = janelas[jan]
+        assert len(d) == len(peso_bruto[jan]), f"{jan}: o corte do peso sem teto não bate com a janela"
+        return d[["data_base", "peso"] + CHAVES_SEGMENTO].assign(
+            real=d["alvo_inad"], previsto=cal.transform(p[jan]), atual=d["perfil_inad_atual_pct"] / 100, janela=jan,
+            **({"peso": peso_bruto[jan]} if sem_teto else {}))
+
+    linhas = avaliar(montar("teste"))
+    serie = acompanhamento(pd.concat([montar(j, sem_teto=True) for j in ("val1", "val2", "teste")], ignore_index=True))
+    del janelas, prev, p
+    from modelo import carregar_modelo
+    recentes = perfis_recentes()
+    proj = recentes[["data_base", "uf", "peso"]].assign(
+        previsto=carregar_modelo(raiz).prever(recentes), atual=recentes["perfil_inad_atual_pct"] / 100, janela="projecao")
+    serie_proj = acompanhamento(proj)
     caminho = raiz / "modelos" / "metadados.json"
     meta = json.loads(caminho.read_text(encoding="utf-8"))
     meta["segmentos_teste"] = {"modelo": meta.get("modelo_escolhido"), "regra": "previsto >= limite", "linhas": linhas}
+    meta["projecao"] = {"modelo": meta.get("modelo_escolhido"), "datas_base": [str(d.date()) for d in sorted(recentes["data_base"].unique())],
+                        "nota": "modelo em produção (todo o histórico, calibração dos meses finais) aplicado aos perfis dos últimos 6 meses, "
+                                "ainda sem resultado; pesa pela carteira atual do perfil, sem teto",
+                        "linhas": serie_proj}
+    meta["acompanhamento"] = {"modelo": meta.get("modelo_escolhido"), "calibracao": metodo,
+                              "nota": "modelos treinados antes de cada janela (val1, val2 e teste); a calibração vem da val1 e "
+                                      "os pesos do empilhamento, da val2, então essas duas janelas não são totalmente fora da amostra; "
+                                      "pesa pela carteira no mês do alvo, sem o teto do percentil 99",
+                              "linhas": serie}
     caminho.write_text(json.dumps(meta, ensure_ascii=False, indent=1, default=float), encoding="utf-8")
     for r in linhas:
         if r["pesa"] == "reais" or r["nivel"] == "segmento":

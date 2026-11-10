@@ -1,9 +1,13 @@
-# Previsão de Inadimplência e Risco de Crédito Agro — PoC
+# Previsão de Inadimplência por Perfil de Crédito Rural — PoC
 
-Modelo preditivo que estima a probabilidade de inadimplência (atraso > 90 dias) de uma operação de crédito rural
-**6 meses à frente**, a partir do perfil do produtor, da operação e do cenário de safra e crédito da sua UF.
-Treinado **exclusivamente com dados oficiais e públicos** (Banco Central e IBGE), sem dados sintéticos.
-Dashboard em Streamlit com explicabilidade via SHAP.
+O produto principal é a **previsão por perfil**: para cada perfil da carteira de crédito rural (UF, tipo de instituição, PF/PJ,
+ocupação ou atividade, porte, finalidade, origem dos recursos e indexador), o modelo prevê a inadimplência (atraso > 90 dias)
+**6 meses à frente** e dá um nível de alerta: **crítico** a partir de 10%, **atenção** de 5% a 10% e normal abaixo disso. A
+inadimplência prevista é a fração dos reais emprestados ao perfil que deve estar com atraso acima de 90 dias. O resultado é a lista
+de **perfis em alerta** da carteira, ordenada pelo valor em risco.
+
+Treinado **exclusivamente com dados oficiais e públicos** (Banco Central e IBGE), sem dados sintéticos. Dashboard em Streamlit
+com explicabilidade via SHAP.
 
 ## Rodar o dashboard
 
@@ -14,15 +18,64 @@ streamlit run app.py
 
 O modelo treinado já vem em `modelos/`, então o dashboard abre direto. Abas:
 
-- **Avaliar produtor** — o analista informa o perfil e a operação; recebe probabilidade, score (0–1000), faixa (A–E)
-  e os fatores que mais pesaram (SHAP), além de indicar se o perfil passou do threshold. O cenário de safra e crédito da UF vem preenchido com os dados oficiais
-  mais recentes e pode ser alterado para testes de estresse.
-- **Avaliação em lote** — upload de CSV com vários produtores; devolve probabilidade, score, faixa, principal fator
-  de risco e principal atenuante de cada um.
-- **Desempenho do modelo** — comparação dos modelos fora do tempo, calibração, importância global e série histórica.
+- **Perfis em alerta** — quantos perfis da carteira mais recente estão críticos ou em atenção, a lista ordenada pelo valor em
+  risco, a medição do teste e a visão agregada por segmento UF × finalidade.
+- **Avaliar perfil** — o analista informa o perfil e a operação; recebe a inadimplência prevista, o nível de alerta,
+  score (0–1000), faixa (A–E) e os fatores que mais pesaram (SHAP). O cenário de safra e crédito da UF vem preenchido com os dados
+  oficiais mais recentes e pode ser alterado para testes de estresse.
+- **Avaliação em lote** — upload de CSV; devolve a previsão, a coluna `nivel_alerta`, score, faixa, principal fator de risco e
+  principal atenuante de cada linha.
+- **Desempenho do modelo** — abre com a medição por perfil e segue com a comparação dos modelos de base, calibração e importância.
 - **Dados e método** — fontes, método e limitações.
 
-## Resultados (teste fora do tempo)
+## Resultado principal: perfis em alerta (teste)
+
+Um perfil é sinalizado quando a inadimplência prevista passa do limite: 10% mede o nível crítico e 5% mede atenção ou crítico. O teste usa perfis de jan/2025 a fev/2026 (alvos de jul/2025 a
+ago/2026), com o ensemble empilhado calibrado na primeira janela de validação. Precisão, recall e F1 pesam por **reais de carteira**.
+
+| Perfil passa de | Precisão | Recall | **F1 do modelo** | F1 repetindo o nível atual | F1 sinalizando tudo | Carteira sinalizada |
+|---|---|---|---|---|---|---|
+| **5% (atenção ou crítico)** | **0,729** | **0,858** | **0,789** | **0,681** | **0,502** | **39%** |
+| **10% (crítico)** | **0,691** | **0,628** | **0,658** | **0,551** | **0,296** | **16%** |
+| 20% | 0,719 | 0,375 | 0,493 | 0,461 | 0,129 | 4% |
+
+O F1 em 5% sai maior em parte porque mais carteira passa de 5% (33% no teste, contra 17% em 10%): sinalizar tudo já dá 0,502. O
+ganho sobre repetir o nível atual é praticamente o mesmo nos dois limites. O 10% marca o nível crítico porque a lista de 5% é larga
+demais para priorizar e porque 5% fica abaixo da inadimplência média atual (7,2%).
+
+Contando perfis em vez de reais, o F1 em 10% é 0,628 (contra 0,544 repetindo o nível atual). Agregando em segmentos UF × finalidade,
+o F1 em 10% é 0,754 contando segmentos e 0,557 pesando por reais. A medição completa fica em `modelos/metadados.json`, na chave
+`segmentos_teste`, e é gerada por `python src/segmentos.py`.
+
+**Limites desta medição.** Os limites foram escolhidos depois de ver o teste, e o modelo também foi escolhido no teste, por orientação
+do professor. Os números são otimistas até virem meses novos do Banco Central. Em 20%, o ganho sobre repetir o nível atual é pequeno.
+
+**Na carteira atual.** Com os perfis de ago/2026, o modelo prevê 11,2% de inadimplência em 6 meses, contra 7,2% hoje. Dos 22.110 perfis,
+10.829 ficam críticos (33% da carteira; no teste, eram 16%), 2.921 em atenção (20,8%) e 8.360 normais (46,2%). O nível previsto é incerto
+(veja abaixo), e quem passa dos limites depende dele: use a lista mais como ordem de prioridade do que como contagem exata.
+
+**Previsto × real, mês a mês.** Nos alvos de jul/2024 a ago/2026 (janelas de validação e teste), o modelo errou o nível para os dois lados,
+sem um viés fixo: previu alto demais de jan a abr/2025 e de fev a abr/2026 (até 0,6 p.p.) e baixo demais de ago a dez/2025 (até 0,8 p.p.) e
+em ago/2026 (6,2% previstos contra 7,2% reais). As maiores superestimações por UF foram no RS logo depois das enchentes de 2024 e nas UFs
+de grãos na colheita (fev–abr); o modelo subestima de forma sistemática MA, TO, PI, GO, MS e MT e a finalidade comercialização.
+
+**Projeção.** O modelo em produção, aplicado aos perfis de mar a ago/2026, projeta a inadimplência da carteira subindo de 8,9% em
+set/2026 para 11,2% em fev/2027 (hoje: 7,2%). A série histórica fica em `modelos/metadados.json`, na chave `acompanhamento`, e a
+projeção, na chave `projecao`; as duas aparecem no gráfico da aba de desempenho, por UF. Pesam pela carteira, sem teto, e são geradas
+por `python src/segmentos.py`. Parte do salto entre ago/2026 (último mês conhecido) e set/2026 (primeiro projetado) vem da troca do
+modelo do teste pelo de produção.
+
+## Modelo de base: ensemble empilhado
+
+A previsão por perfil vem de um ensemble empilhado de XGBoost, CatBoost, Random Forest e LightGBM, com hiperparâmetros buscados pelo
+Optuna pela PR-AUC (50 tentativas por modelo) e treino final no Colab. Medido como ordenação de reais de carteira com o alvo
+fracionário, no teste: PR-AUC 0,269, precisão 0,402, recall 0,205, F1 0,272, AUC 0,817 e Brier 0,0518. Esse F1 responde a outra
+pergunta e não se compara com o F1 por perfil. Em produção: calibração isotônica, fatia de 8,9% e limiar de 32,26%.
+`python src/trocar_criterio.py f1_auc` volta ao modelo anterior (backup em `modelos/backup_antes_ensemble/`).
+
+## Histórico: modelo anterior (XGBoost, antes do ensemble)
+
+Resultados do modelo que estava em produção antes do ensemble, mantidos para comparação.
 
 Critérios definidos com o professor: os hiperparâmetros são buscados pelo **Brier**, os modelos são decididos por **F1 e
 AUC-ROC juntos** e a comparação usa **várias métricas**, sem julgar por uma só.
@@ -101,7 +154,9 @@ inadimplência em 6 meses, contra 7,2% hoje.
 ```bash
 python src/coleta.py      # baixa SCR.data (~800 MB), IBGE, SGS, Banco Mundial e Conab; extrai a carteira rural
 python src/features.py    # monta a base de modelagem e o contexto atual por UF
-python src/treino.py      # busca pelo Brier, decide por F1 e AUC-ROC, calibra e salva com o SHAP
+python src/treino.py      # modelos de base: busca pelo Brier, decide por F1 e AUC-ROC, calibra e salva com o SHAP
+python src/montar_ensemble.py  # instala o ensemble treinado no Colab em modelos/ensemble/final/
+python src/segmentos.py   # mede no teste os perfis e segmentos acima de 5%, 10% e 20%
 python src/trocar_criterio.py f1  # opcional: alterna o critério entre f1_auc (padrão), f1 e beneficio, sem retreinar
 python -m pytest tests -q # testes de fumaça (modelo, aditividade do SHAP, dashboard)
 ```
@@ -116,6 +171,8 @@ app.py                  dashboard Streamlit
 src/coleta.py           download e extração das fontes oficiais
 src/features.py         engenharia de variáveis e alvo 6 meses à frente
 src/modelo.py           pré-processamento, offset, calibrador e classe ModeloRisco (prever + explicar)
+src/segmentos.py        níveis de alerta (atenção 5%, crítico 10%) e medição dos perfis e segmentos
+src/montar_ensemble.py  instala o ensemble empilhado
 src/trocar_criterio.py  alterna o modelo ativo entre os critérios de escolha
 src/treino.py           validação e teste fora do tempo, calibração, threshold, modelo final e SHAP
 modelos/                modelo treinado, metadados, log do treino e backup da versão anterior
@@ -131,8 +188,10 @@ tests/                  testes de fumaça e das peças de calibração, threshol
   (peso 1). Histórico de pagamento do próprio produtor seria a variável mais forte a acrescentar.
 - **Categorias do SCR.** Ocupação e porte são os declarados pelas instituições; produtores PF aparecem em geral como
   Autônomo, Empresário ou Outros.
-- **Mudança de ciclo.** A calibração aprende com a piora recente e assume que ela continua. Para os perfis de ago/2026, o modelo
-  prevê 9,6% de inadimplência em 6 meses, contra 7,2% hoje, e não dá para conferir esse número ainda. Retreine e recalibre mensalmente.
+- **Mudança de ciclo.** O nível previsto oscila: no histórico, o modelo previu alto demais no início de 2025 e baixo demais desde
+  meados de 2025. Para os perfis de ago/2026, prevê 11,2% de inadimplência em 6 meses, contra 7,2% hoje, e não dá para conferir esse
+  número ainda; ele pode estar alto ou baixo. Esse nível decide quantos perfis ficam em alerta. Retreine e recalibre mensalmente e
+  acompanhe o previsto × real.
 - **Preços e custos.** O preço é internacional, não o recebido pelo produtor, e a margem da Conab cobre só soja e milho e está
   disponível em 13 UFs hoje; nas demais, o modelo preenche o valor. Os custos entram com a premissa de 3 meses de defasagem.
 - **Safra defasada.** Para evitar vazamento, cada mês usa só o último PAM já publicado, com a premissa de que ele sai em
