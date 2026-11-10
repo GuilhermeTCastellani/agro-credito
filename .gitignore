@@ -20,5 +20,6 @@ optuna_*.db
 # modelos e resultados do Colab: ficam no Drive e no producao_final.zip, não no repositório
 modelos/ensemble/
 modelos/colab/
+modelos/backtest/*.npz
 /previsoes_*.npz
 /resultados_optuna.json

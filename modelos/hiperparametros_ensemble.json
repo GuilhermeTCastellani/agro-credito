@@ -1,0 +1,42 @@
+{
+ "origem": "modelos/colab/resultados_optuna.json (busca do Optuna no Colab, 50 tentativas por modelo, PR-AUC na validação 2)",
+ "params": {
+  "xgboost": {
+   "max_depth": 10,
+   "learning_rate": 0.0043441007934044845,
+   "subsample": 0.8255984126182847,
+   "colsample_bytree": 0.6874807202836252,
+   "colsample_bylevel": 0.5384389112797608,
+   "min_child_weight": 17,
+   "reg_alpha": 0.0038822849261472996,
+   "reg_lambda": 3.6131925023697944,
+   "gamma": 0.00037137097368645014
+  },
+  "catboost": {
+   "learning_rate": 0.012930022120398408,
+   "bagging_temperature": 0.5375713710395545,
+   "l2_leaf_reg": 4.320582779857364,
+   "random_strength": 3,
+   "leaf_estimation_iterations": 13
+  },
+  "random_forest": {
+   "max_depth": 20,
+   "n_estimators": 278,
+   "max_features": 0.1,
+   "min_samples_split": 2,
+   "min_samples_leaf": 3,
+   "bootstrap": true
+  },
+  "lightgbm": {
+   "num_leaves": 196,
+   "learning_rate": 0.0024150077757322877,
+   "subsample": 0.9300494375864553,
+   "colsample_bytree": 0.5747159824549036,
+   "min_child_samples": 5,
+   "min_child_weight": 2.367078745016287e-05,
+   "usa_l1": true,
+   "reg_alpha": 3.7243043262695053e-07,
+   "usa_l2": false
+  }
+ }
+}
