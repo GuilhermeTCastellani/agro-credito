@@ -26,7 +26,7 @@ Responda em português do Brasil. **Nunca faça commit nem push sem pedido expl�
   backtest_erro_de_nivel` (o `src/segmentos.py` e o `app.py` leem isso). Backup do empilhado em `modelos/backup_antes_media/`.
 - **Teste (média):** PR-AUC 0,271, precisão 0,409, recall 0,199, F1 0,268, AUC 0,817, Brier 0,0518 (empilhado: 0,269; 0,402; 0,205;
   0,272; 0,817; 0,0518). Os modelos foram escolhidos no teste, por orientação do professor; os números são otimistas.
-- **Produção:** sem calibrador, fatia 9,1%, limiar 21,82%. Prevê 8,8% para fev/2027 (perfis de ago/2026), contra 7,2% hoje; projeção
+- **Produção (supersedido pelo retreino com set/2026, veja "Retreino com LSPA" abaixo):** sem calibrador, fatia 9,1%, limiar 21,82%. Prevê 8,8% para fev/2027 (perfis de ago/2026), contra 7,2% hoje; projeção
   7,4% (set/2026) a 8,8% (fev/2027). Alertas em ago/2026: 10.411 críticos (31,9% da carteira), 3.171 em atenção (19,5%), 8.528 normais.
   Por perfil no teste: ≥ 10% F1 0,657 (precisão 0,691, recall 0,627), ≥ 5% F1 0,789, ≥ 20% F1 0,501; segmentos ≥ 10%: 0,767 contando, 0,607 em reais.
 - **SHAP do ensemble:** soma as explicações dos componentes com os pesos (0,25 cada); o Random Forest usa o SHAP aproximado
@@ -89,7 +89,18 @@ Responda em português do Brasil. **Nunca faça commit nem push sem pedido expl�
   Variáveis por UF: `lspa_var_producao_pct` (grãos estimados no ano corrente / estimativa final do ano anterior) e
   `lspa_revisao_3m_pct` (revisão da estimativa do ano nos últimos 3 levantamentos). **Regra fixada antes de ver resultado:** a LSPA
   entra se a PR-AUC subir no backtest com a média, sem piorar o erro de nível mais de 0,1 p.p. nem o F1 ≥ 10% mais de 0,01.
-  Conferir também a projeção da média para set/2026 (7,4%) contra o real. Depois, atualizar os slides.
+  **Conferência de set/2026 (primeiro mês fora da amostra):** real 6,48% (caiu de 7,20% em ago); a média previu 7,37% (+0,9 p.p.),
+  o empilhado teria previsto 8,9% (+2,4). Superestimou em 21 de 27 UFs (maiores: RR, PE, RJ; subestimou AP e PI).
+  **Resultado e instalação (2026-11-10, noite):** retreino feito no Colab (`notebooks/retreino_colab.ipynb`) e instalado por
+  `src/instalar_retreino.py` (backup em `modelos/backup_antes_retreino/`). **LSPA ficou de fora** pela regra: backtest de 9 origens,
+  média, PR-AUC 0,2970 sem × 0,2963 com, erro de nível 1,06 p.p. nos dois, F1 ≥ 10% 0,667 × 0,665 (chave `lspa` no metadados; as
+  variáveis continuam na base e no código, desligadas por `otimizacao.definir_variaveis(False)`). Produção atual: média sem LSPA,
+  35 variáveis, treinada até set/2026, fatia 9,9%, limiar 18,15%, erro da soma do SHAP 0,49 (p95). Teste até mar/2026: PR-AUC 0,273,
+  AUC 0,817, precisão 0,417, recall 0,191, F1 0,262, Brier 0,0525; por perfil ≥ 10% F1 0,664 (precisão 0,704, recall 0,627), ≥ 5% 0,794,
+  ≥ 20% 0,500; segmentos ≥ 10% 0,751 contando e 0,593 em reais. Carteira de set/2026: prevê 7,8% (hoje 6,5%); 10.233 críticos (25,6%),
+  3.230 atenção (23,1%), 8.474 normais (51,4%). Projeção out/2026 7,7%, pico jan/2027 8,8%, mar/2027 7,8%. README, app e testes (87)
+  atualizados; **não commitado** e **slides ainda não atualizados**. SCR antigo em `dados/brutos/scrdata_2026_ate_ago.zip.bak` e
+  `dados/intermediarios/scr_rural_ate_ago.parquet.bak`.
 - **Da sessão anterior (2026-11-05):**
 
 - **Enviado ao professor:** `docs/resultados.xlsx` (renomeada pelo usuário; gerada por um script temporário; abas: método e limites, comparação no

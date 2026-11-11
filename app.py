@@ -63,6 +63,8 @@ ROTULOS = {
     "relacao_troca_var_12m_pct": "Relação cesta agrícola/fertilizantes em 12 meses",
     "conab_margem_pct": "Margem estimada de soja e milho na UF",
     "conab_custo_var_anual_pct": "Variação anual do custo de soja e milho na UF",
+    "lspa_var_producao_pct": "Safra de grãos estimada para o ano (IBGE LSPA) contra o ano anterior",
+    "lspa_revisao_3m_pct": "Revisão da safra estimada nos últimos 3 levantamentos (IBGE LSPA)",
     "calibracao": "Ajuste de calibração",
 }
 def br(v, casas=1, sinal=False):
@@ -98,7 +100,8 @@ UNIDADE = {
     "mes_alvo": lambda v: f"{int(v):02d}",
     **{c: (lambda v: f"{br(v, 1, sinal=True)}%") for c in [
         "preco_cesta_var_6m_pct", "preco_cesta_var_12m_pct", "fert_var_6m_pct", "fert_var_12m_pct",
-        "boi_var_12m_pct", "relacao_troca_var_12m_pct", "conab_margem_pct", "conab_custo_var_anual_pct"]},
+        "boi_var_12m_pct", "relacao_troca_var_12m_pct", "conab_margem_pct", "conab_custo_var_anual_pct",
+        "lspa_var_producao_pct", "lspa_revisao_3m_pct"]},
 }
 REGIAO = {
     **{u: "Norte" for u in ["RO", "AC", "AM", "RR", "PA", "AP", "TO"]},
@@ -159,7 +162,8 @@ COLS_EXTRAS = ["perfil_inad_var_1m_pp", "perfil_inad_var_3m_pp", "perfil_inad_va
                "perfil_vence_90d_pct", "perfil_cresc_6m_pct", "perfil_cresc_12m_pct", "pares_inad_atual_pct",
                "uf_finalidade_inad_pct", "mes_alvo"]
 COLS_PRECOS = ["preco_cesta_var_6m_pct", "preco_cesta_var_12m_pct", "fert_var_6m_pct", "fert_var_12m_pct",
-               "boi_var_12m_pct", "relacao_troca_var_12m_pct", "conab_margem_pct", "conab_custo_var_anual_pct"]
+               "boi_var_12m_pct", "relacao_troca_var_12m_pct", "conab_margem_pct", "conab_custo_var_anual_pct",
+               "lspa_var_producao_pct", "lspa_revisao_3m_pct"]
 NOME_CRITERIO = {"f1_auc": "F1 e AUC-ROC juntos", "f1": "F1", "beneficio": "benefício líquido médio"}
 REGRA_PROFESSOR = "professor_pr_auc_precisao_recall_f1"
 REGRA_BACKTEST = "backtest_erro_de_nivel"
@@ -825,7 +829,7 @@ with aba_dados:
 |---|---|
 | [SCR.data v2 — Banco Central](https://dadosabertos.bcb.gov.br/dataset/scr_data) | Carteira de crédito rural e inadimplência (>90 dias) por UF, tipo de instituição, PF/PJ, ocupação/CNAE, porte, finalidade, origem e indexador. Alvo do modelo e contexto regional. |
 | [IBGE PAM, tabela 5457](https://sidra.ibge.gov.br/tabela/5457) | Área plantada, colhida e produção de soja, milho, arroz, trigo, feijão e algodão por UF (2014–2025). |
-| [IBGE LSPA, tabela 6588](https://sidra.ibge.gov.br/tabela/6588) | Estimativa da safra do ano corrente (2026) por UF. Coletada, mas fora do modelo atual. |
+| [IBGE LSPA, tabela 6588](https://sidra.ibge.gov.br/tabela/6588) | Estimativa da safra do ano corrente por UF, em cada levantamento mensal. Testada num backtest com e sem ela e deixada fora do modelo, porque não melhorou a PR-AUC (0,2963 com, 0,2970 sem). |
 | [BCB SGS](https://www3.bcb.gov.br/sgspub/) séries 432, 433 e 1 | Meta Selic, IPCA mensal e dólar comercial. |
 | [Banco Mundial, Pink Sheet](https://www.worldbank.org/en/research/commodity-markets) | Preços internacionais mensais de produtos agrícolas, boi e fertilizantes, convertidos para reais. |
 | [Conab, custos de produção](https://www.gov.br/conab/pt-br/atuacao/informacoes-agropecuarias/custos-de-producao/planilhas-de-custos-de-producao) | Custo total de soja e milho por município e safra. |

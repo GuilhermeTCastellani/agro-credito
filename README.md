@@ -30,47 +30,57 @@ O modelo treinado já vem em `modelos/`, então o dashboard abre direto. Abas:
 
 ## Resultado principal: perfis em alerta (teste)
 
-Um perfil é sinalizado quando a inadimplência prevista passa do limite: 10% mede o nível crítico e 5% mede atenção ou crítico. O teste usa perfis de jan/2025 a fev/2026 (alvos de jul/2025 a
-ago/2026), com a média dos quatro modelos calibrada na primeira janela de validação. Precisão, recall e F1 pesam por **reais de carteira**.
+Um perfil é sinalizado quando a inadimplência prevista passa do limite: 10% mede o nível crítico e 5% mede atenção ou crítico. O teste usa perfis de jan/2025 a mar/2026 (alvos de jul/2025 a
+set/2026), com a média dos quatro modelos calibrada na primeira janela de validação. Precisão, recall e F1 pesam por **reais de carteira**.
 
 | Perfil passa de | Precisão | Recall | **F1 do modelo** | F1 repetindo o nível atual | F1 sinalizando tudo | Carteira sinalizada |
 |---|---|---|---|---|---|---|
-| **5% (atenção ou crítico)** | **0,729** | **0,859** | **0,789** | **0,681** | **0,502** | **39%** |
-| **10% (crítico)** | **0,691** | **0,627** | **0,657** | **0,551** | **0,296** | **16%** |
-| 20% | 0,724 | 0,383 | 0,501 | 0,461 | 0,129 | 4% |
+| **5% (atenção ou crítico)** | **0,735** | **0,863** | **0,794** | **0,691** | **0,506** | **40%** |
+| **10% (crítico)** | **0,704** | **0,627** | **0,664** | **0,562** | **0,301** | **16%** |
+| 20% | 0,731 | 0,380 | 0,500 | 0,469 | 0,133 | 4% |
 
-O F1 em 5% sai maior em parte porque mais carteira passa de 5% (33% no teste, contra 17% em 10%): sinalizar tudo já dá 0,502. O
+O F1 em 5% sai maior em parte porque mais carteira passa de 5% (34% no teste, contra 18% em 10%): sinalizar tudo já dá 0,506. O
 ganho sobre repetir o nível atual é praticamente o mesmo nos dois limites. O 10% marca o nível crítico porque a lista de 5% é larga
-demais para priorizar e porque 5% fica abaixo da inadimplência média atual (7,2%).
+demais para priorizar e porque 5% fica abaixo da inadimplência média atual (6,5%).
 
-Contando perfis em vez de reais, o F1 em 10% é 0,628 (contra 0,544 repetindo o nível atual). Agregando em segmentos UF × finalidade,
-o F1 em 10% é 0,767 contando segmentos e 0,607 pesando por reais. A medição completa fica em `modelos/metadados.json`, na chave
+Contando perfis em vez de reais, o F1 em 10% é 0,634 (contra 0,552 repetindo o nível atual). Agregando em segmentos UF × finalidade,
+o F1 em 10% é 0,751 contando segmentos e 0,593 pesando por reais. A medição completa fica em `modelos/metadados.json`, na chave
 `segmentos_teste`, e é gerada por `python src/segmentos.py`.
 
 **Limites desta medição.** Os limites foram escolhidos depois de ver o teste, e o modelo também foi escolhido no teste, por orientação
 do professor. Os números são otimistas até virem meses novos do Banco Central. Em 20%, o ganho sobre repetir o nível atual é pequeno.
 
-**Na carteira atual.** Com os perfis de ago/2026, o modelo prevê 8,8% de inadimplência em 6 meses, contra 7,2% hoje. Dos 22.110 perfis,
-10.411 ficam críticos (31,9% da carteira; no teste, eram 16%), 3.171 em atenção (19,5%) e 8.528 normais (48,6%). O nível previsto é incerto
+**Na carteira atual.** Com os perfis de set/2026, o modelo prevê 7,8% de inadimplência em 6 meses, contra 6,5% hoje. Dos 21.937 perfis,
+10.233 ficam críticos (25,6% da carteira; no teste, eram 16%), 3.230 em atenção (23,1%) e 8.474 normais (51,4%). O nível previsto é incerto
 (veja abaixo), e quem passa dos limites depende dele: use a lista mais como ordem de prioridade do que como contagem exata.
 
-**Previsto × real, mês a mês.** Nos alvos de jul/2024 a ago/2026 (janelas de validação e teste), o modelo errou o nível para os dois lados,
+**Primeira conferência fora da amostra (set/2026).** Antes do retreino, a média projetava 7,4% para set/2026; o real foi 6,5% (a
+inadimplência caiu de 7,2% em agosto). O empilhamento anterior projetava 8,9%. O erro caiu de 2,4 para 0,9 p.p., mas ainda para cima.
+
+**Previsto × real, mês a mês.** Nos alvos de jul/2024 a set/2026 (janelas de validação e teste), o modelo errou o nível para os dois lados,
 sem um viés fixo: previu alto demais de jan a abr/2025 e de fev a abr/2026 (até 0,6 p.p.) e baixo demais de ago a dez/2025 (até 0,8 p.p.) e
-em ago/2026 (6,3% previstos contra 7,2% reais). As maiores superestimações por UF foram no RS logo depois das enchentes de 2024 e nas UFs
+em ago–set/2026 (6,2% previstos contra 7,2% reais em agosto; 5,9% contra 6,5% em setembro). As maiores superestimações por UF foram no RS logo depois das enchentes de 2024 e nas UFs
 de grãos na colheita (fev–abr); o modelo subestima de forma sistemática MA, TO, PI, GO, MS e MT e a finalidade comercialização.
 
-**Projeção.** O modelo em produção, aplicado aos perfis de mar a ago/2026, projeta a inadimplência da carteira subindo de 7,4% em
-set/2026 para 8,8% em fev/2027 (hoje: 7,2%). A série histórica fica em `modelos/metadados.json`, na chave `acompanhamento`, e a
+**Projeção.** O modelo em produção, aplicado aos perfis de abr a set/2026, projeta a inadimplência da carteira em 7,7% em out/2026,
+com pico de 8,8% em jan/2027 e 7,8% em mar/2027 (hoje: 6,5%). A série histórica fica em `modelos/metadados.json`, na chave `acompanhamento`, e a
 projeção, na chave `projecao`; as duas aparecem no gráfico da aba de desempenho, por UF. Pesam pela carteira, sem teto, e são geradas
-por `python src/segmentos.py`. Parte da diferença entre ago/2026 (último mês conhecido) e set/2026 (primeiro projetado) vem da troca do
+por `python src/segmentos.py`. Parte da diferença entre set/2026 (último mês conhecido) e out/2026 (primeiro projetado) vem da troca do
 modelo do teste pelo de produção.
 
 ## Modelo de base: média de quatro modelos
 
 A previsão por perfil vem da média simples das log-chances de XGBoost, CatBoost, Random Forest e LightGBM, com hiperparâmetros
 buscados pelo Optuna pela PR-AUC (50 tentativas por modelo) e treino final no Colab. Medido como ordenação de reais de carteira com o
-alvo fracionário, no teste: PR-AUC 0,271, precisão 0,409, recall 0,199, F1 0,268, AUC 0,817 e Brier 0,0518. Esse F1 responde a outra
-pergunta e não se compara com o F1 por perfil. Em produção: sem calibrador, fatia de 9,1% e limiar de 21,82%.
+alvo fracionário, no teste (até mar/2026): PR-AUC 0,273, precisão 0,417, recall 0,191, F1 0,262, AUC 0,817 e Brier 0,0525. Esse F1
+responde a outra pergunta e não se compara com o F1 por perfil. Em produção (retreino com o SCR até set/2026): sem calibrador, fatia de
+9,9% e limiar de 18,15%.
+
+**Safra corrente (LSPA) testada e deixada de fora.** Duas variáveis por UF, só com levantamentos já publicados (variação da safra de
+grãos estimada contra o ano anterior e revisão da estimativa em 3 levantamentos), foram comparadas num backtest de 9 origens com e sem
+elas. Regra fixada antes: entra se a PR-AUC subir sem piorar o nível nem o alerta crítico. Resultado: PR-AUC 0,2963 com e 0,2970 sem,
+erro de nível 1,06 p.p. nos dois, F1 ≥ 10% 0,665 com e 0,667 sem. A safra corrente não acrescentou informação ao que o histórico do
+perfil e da UF já carrega. Decisão registrada em `modelos/metadados.json`, chave `lspa`.
 
 **Por que a média, e não o empilhamento.** Até 10/11/2026 a produção usava um empilhamento (regressão logística sobre os quatro
 modelos, com pesos da validação de 2024). Os pesos somavam 1,12 e tinham intercepto positivo, o que inflava o nível nos modelos de
@@ -158,7 +168,7 @@ inadimplência em 6 meses, contra 7,2% hoje.
 |---|---|
 | [SCR.data v2 — BCB](https://dadosabertos.bcb.gov.br/dataset/scr_data) (2022–2026) | Carteira e inadimplência rural por UF × tipo de instituição × PF/PJ × ocupação/CNAE × porte × finalidade × origem × indexador. Alvo e contexto regional. |
 | [IBGE PAM, tabela 5457](https://sidra.ibge.gov.br/tabela/5457) (2014–2025) | Área plantada, colhida e produção de grãos por UF → anomalia de produtividade, perda de área, variação da produção. |
-| [IBGE LSPA, tabela 6588](https://sidra.ibge.gov.br/tabela/6588) (2026) | Estimativa da safra corrente. Coletada, mas fora do modelo atual. |
+| [IBGE LSPA, tabela 6588](https://sidra.ibge.gov.br/tabela/6588) (2006–2026) | Estimativa da safra corrente, por levantamento mensal. Testada no backtest e deixada fora do modelo (não melhorou a PR-AUC). |
 | BCB SGS 432, 433, 1 | Selic, IPCA e dólar. |
 | [Banco Mundial, Pink Sheet](https://www.worldbank.org/en/research/commodity-markets) | Preços internacionais mensais de produtos agrícolas, boi e fertilizantes, convertidos para reais. Antes de uso comercial, confirme a licença. |
 | [Conab, custos de produção](https://www.gov.br/conab/pt-br/atuacao/informacoes-agropecuarias/custos-de-producao/planilhas-de-custos-de-producao) | Custo total de soja e milho por município e safra. Antes de uso comercial, confirme a licença. |
@@ -211,7 +221,7 @@ tests/                  testes de fumaça e das peças de calibração, threshol
 - **Categorias do SCR.** Ocupação e porte são os declarados pelas instituições; produtores PF aparecem em geral como
   Autônomo, Empresário ou Outros.
 - **Mudança de ciclo.** O nível previsto oscila: no histórico, o modelo previu alto demais no início de 2025 e baixo demais desde
-  meados de 2025. Para os perfis de ago/2026, prevê 8,8% de inadimplência em 6 meses, contra 7,2% hoje, e não dá para conferir esse
+  meados de 2025. Para os perfis de set/2026, prevê 7,8% de inadimplência em 6 meses, contra 6,5% hoje, e não dá para conferir esse
   número ainda; ele pode estar alto ou baixo. Esse nível decide quantos perfis ficam em alerta. Retreine e recalibre mensalmente e
   acompanhe o previsto × real.
 - **Preços e custos.** O preço é internacional, não o recebido pelo produtor, e a margem da Conab cobre só soja e milho e está
