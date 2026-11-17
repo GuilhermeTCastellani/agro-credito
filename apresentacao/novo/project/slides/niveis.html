@@ -1,0 +1,28 @@
+<section id="niveis" class="foot" data-transition="fade">
+<div class="head">
+<p class="eyebrow">Parte 4 · O produto</p>
+<h2>Três níveis de alerta por perfil</h2>
+</div>
+<div class="cards">
+<div class="card tight level">
+<p class="title30">Normal</p>
+<p class="small soft">Previsão abaixo de 5% de inadimplência em 6 meses</p>
+</div>
+<div class="card tight level warn">
+<p class="title30">Atenção</p>
+<p class="small soft">Previsão de 5% a 10%</p>
+</div>
+<div class="card tight level crit">
+<p class="title30">Crítico</p>
+<p class="small soft">Previsão de 10% ou mais</p>
+</div>
+</div>
+<p class="small">No teste, o alerta do modelo acerta mais do que duas regras simples (F1, de 0 a 1, quanto maior melhor):</p>
+<table>
+<tr class="thead"><th style="width:30%;">Alerta</th><th>Precisão</th><th>Recall</th><th>F1 do modelo</th><th>F1 repetindo o nível de hoje</th><th>F1 alertando tudo</th></tr>
+<tr><td>Crítico (10% ou mais)</td><td>0,704</td><td>0,627</td><td>0,664</td><td>0,562</td><td>0,301</td></tr>
+<tr><td>Atenção ou crítico (5% ou mais)</td><td>0,735</td><td>0,863</td><td>0,794</td><td>0,691</td><td>0,506</td></tr>
+</table>
+<p class="source">Teste fora do tempo, de jan/2025 a mar/2026, por perfil e pesando por reais de carteira. Limites definidos depois de ver o teste: números otimistas.</p>
+<aside>[Apresentador 4] Cerca de 1 minuto e 15 segundos. O produto não é uma nota, é um alerta em três níveis. Se o modelo prevê menos de 5% de inadimplência para o perfil em 6 meses, é normal. De 5% a 10%, atenção. A partir de 10%, crítico. Exemplo: previsão de 12% quer dizer que se espera que 12% dos reais emprestados àquele perfil estejam com atraso acima de 90 dias em 6 meses. Funciona? No teste, de cada 10 reais que o modelo marcou como críticos, 7 ficaram mesmo acima de 10%: precisão 0,70. E ele encontrou 63% dos reais que ficaram críticos: recall 0,63. O F1, que junta os dois, é 0,664. A comparação justa é com regras simples: repetir o nível de hoje daria 0,562, e alertar tudo daria 0,301. O ganho sobre a regra simples é a contribuição do modelo: ele antecipa perfis que hoje ainda não estão críticos. Os limites de 5% e 10% foram definidos depois de ver o teste, então os números são otimistas.</aside>
+</section>

@@ -69,8 +69,30 @@ Responda em português do Brasil. **Nunca faça commit nem push sem pedido expl�
 - Este PC tem só 7,4 GB de RAM: feche programas antes de treinar. O Colab do usuário agora é Pro, numa conta pessoal; o progresso fica em
   `MyDrive/agro-credito/progresso`, e o secret `GITHUB_TOKEN` precisa existir na conta usada.
 
-### Retomada (parou em 2026-11-10 à noite)
+### Retomada (parou em 2026-11-16 à noite)
 
+- **Deck novo (2026-11-16):** https://claude.ai/artifact/StSM7i4HRX3Jd63qACBuq3, 13 slides para ~15 min (demonstração incluída), com
+  abertura macro do agro, números do retreino (média, set/2026), backtest, conferência de set/2026 e a faixa de ±1 ponto. Fonte em
+  `apresentacao/novo/project/`; desenho aprovado em `docs/superpowers/specs/2026-11-16-deck-novo-design.md`. Tem animação de entrada
+  em todos os slides. O deck antigo (`apresentacao/project/`, LKgKTSATgyZBpZmezjAvZM) ficou intacto e desatualizado.
+  **Pendente no deck:** o usuário ainda não confirmou o visual dos slides com gráfico (3, 4 e 10); preencher `[Nomes dos 6 integrantes]`;
+  conferir no boletim do MAPA os 48,5% de participação do agro nas exportações (veio de notícia).
+- **Inadimplência oficial × a nossa (2026-11-16):** a série do BC para crédito rural de pessoa física (SGS 21148) marca 9,67% em ago/2026
+  (recorde desde 2011) e 8,68% em set/2026; a nossa (SCR.data, PF + PJ) marca 7,20% e 6,48% (só PF em set/2026: 7,8%). A diferença de
+  0,9 ponto em PF não foi apurada. O slide 3 cita a série oficial como contexto. O BC regravou mai–set/2026 entre 10 e 14/11, sem mudar a
+  inadimplência rural (conferido); outubro ainda não saiu.
+- **Dashboard redesenhado (2026-11-16):** tema novo em `.streamlit/config.toml` (cores e fontes do deck), veredito com régua de risco em
+  "Avaliar perfil", barra da carteira por nível em "Perfis em alerta" e paleta nova nos gráficos. Os 87 testes passam. **O usuário ainda
+  não disse se o visual ficou bom**: começar a próxima sessão perguntando isso (fontes, régua, barra da carteira).
+- `modelos/retreino/` (164 MB, download do Colab) fica fora do Git, como `modelos/colab/`.
+
+### Sessão anterior (parou em 2026-11-10 à noite)
+
+- **Mensagem para a apresentação (pedida pelo usuário em 2026-11-10; ainda não está em nenhum slide):** "O modelo acompanha a tendência
+  de alta, mas fica atrasado nas viradas. Subestimou as subidas de ago–dez/2025 e de ago/2026 e superestimou o começo de 2025. A
+  projeção atual também sobe, enquanto o real acabou de cair. É por isso que a taxa prevista deve ser lida como uma faixa de ±1 ponto."
+  Gráfico de apoio (real × previsto fora do tempo × projeção atual): https://claude.ai/artifact/SuoBA9uFFVN8ywuGHpLK2o (fonte no
+  scratchpad da sessão, fora do projeto). **O usuário quer montar um deck novo e melhor** (não editar o atual); começar por isso na próxima sessão.
 - **Apresentação em 2026-11-19**, grupo de 6, slides + demonstração ao vivo. Deck: https://claude.ai/artifact/LKgKTSATgyZBpZmezjAvZM
   (17 slides, fonte em `apresentacao/project/`, fora do Git). Os slides ainda mostram o empilhado (projeção 11,2%, salto no gráfico): só mudam
   depois do backtest e da decisão do usuário.

@@ -1,0 +1,26 @@
+<section id="escolha" class="foot" data-transition="fade">
+<div class="head">
+<p class="eyebrow">Parte 5 · Como escolhemos</p>
+<h2>A regra veio antes do resultado</h2>
+</div>
+<div class="cards">
+<div class="card">
+<p class="eyebrow">Simulação da produção</p>
+<p class="num mid">1,1 ponto</p>
+<p class="small soft">foi o erro médio de nível da média simples, contra 1,8 da combinação com pesos ajustados. As duas ordenam os perfis igualmente bem (PR-AUC 0,296).</p>
+</div>
+<div class="card">
+<p class="eyebrow">Primeiro mês novo</p>
+<p class="num mid">+0,9 ponto</p>
+<p class="small soft">foi o erro em setembro de 2026: o real foi 6,5% e a média previu 7,4%. A combinação anterior teria previsto 8,9%.</p>
+</div>
+<div class="card">
+<p class="eyebrow">Safra corrente (LSPA)</p>
+<p class="num mid calm">Ficou de fora</p>
+<p class="small soft">Testamos a estimativa de safra do IBGE. A PR-AUC não subiu (0,2963 com, 0,2970 sem), e a regra dizia para descartar.</p>
+</div>
+</div>
+<p class="small"><b>Em cada decisão,</b> o critério foi escrito antes de rodar o teste: vence quem erra menos o nível, sem perder capacidade de ordenar.</p>
+<p class="source">Simulação trimestral: treina só com o passado e prevê os meses seguintes, de set/2025 a ago/2026. Esse período coincide com o teste, já visto; a confirmação limpa vem dos meses novos.</p>
+<aside>[Apresentador 5] Cerca de 1 minuto e 10 segundos. Como escolhemos o modelo final? Fixando a regra antes de ver o resultado. Primeiro, simulamos a produção: a cada trimestre, treinar só com o passado e prever os meses seguintes. Comparamos seis formas de combinar os quatro modelos. A média simples errou o nível em 1,1 ponto, em média; a combinação com pesos ajustados, que era o modelo anterior, errou 1,8 e para cima. As duas ordenam os perfis igualmente bem. Trocamos para a média. Segundo, chegou um mês novo, setembro de 2026, que nenhum modelo tinha visto: o real foi 6,5%, a média previu 7,4% e o modelo anterior teria previsto 8,9%. Terceiro, testamos incluir a estimativa de safra corrente do IBGE, com a regra de que só entraria se melhorasse a ordenação. Não melhorou, e ficou de fora. Mais simples e mais robusto venceu o mais sofisticado. Ressalva: o período da simulação coincide com o teste, então a confirmação de verdade vem dos próximos meses.</aside>
+</section>

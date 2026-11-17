@@ -1,0 +1,33 @@
+<section id="modelos" class="foot" data-transition="fade">
+<div class="head">
+<p class="eyebrow">Parte 3 · Modelos</p>
+<h2>Cada etapa separou melhor o risco</h2>
+</div>
+<div class="row">
+<div class="col" style="flex:none; width:1040px; gap:16px;">
+<p class="small soft">AUC no teste: 0,5 é sorteio e 1,0 é acerto total</p>
+<div class="bars" style="gap:16px;">
+<div class="bar-row"><p class="bar-name" style="width:400px;">Referência: taxa atual da UF</p><div class="bar-track" style="width:520px;"><div class="bar tall dim" style="width:232px;"></div></div><p class="bar-val" style="width:80px;">0,645</p></div>
+<div class="bar-row"><p class="bar-name" style="width:400px;">Regressão logística</p><div class="bar-track" style="width:520px;"><div class="bar tall" style="width:387px;"></div></div><p class="bar-val" style="width:80px;">0,742</p></div>
+<div class="bar-row"><p class="bar-name" style="width:400px;">XGBoost</p><div class="bar-track" style="width:520px;"><div class="bar tall" style="width:394px;"></div></div><p class="bar-val" style="width:80px;">0,746</p></div>
+<div class="bar-row"><p class="bar-name" style="width:400px;">XGBoost + histórico do perfil</p><div class="bar-track" style="width:520px;"><div class="bar tall" style="width:483px;"></div></div><p class="bar-val" style="width:80px;">0,802</p></div>
+<div class="bar-row"><p class="bar-name" style="width:400px;">XGBoost + SCR ampliado + Conab</p><div class="bar-track" style="width:520px;"><div class="bar tall" style="width:491px;"></div></div><p class="bar-val" style="width:80px;">0,807</p></div>
+<div class="bar-row"><p class="bar-name strong" style="width:400px;">Média de quatro modelos</p><div class="bar-track" style="width:520px;"><div class="bar tall crit" style="width:507px;"></div></div><p class="bar-val" style="width:80px;">0,817</p></div>
+</div>
+<p class="small soft">As barras começam em 0,5. O maior salto veio do histórico do perfil.</p>
+</div>
+<div class="col">
+<p class="title30">O modelo em produção</p>
+<div class="chips">
+<p class="chip inverse">XGBoost</p>
+<p class="chip inverse">CatBoost</p>
+<p class="chip inverse">Random Forest</p>
+<p class="chip inverse">LightGBM</p>
+</div>
+<p class="small">Média simples das quatro previsões, com peso igual. Sem pesos ajustados e sem calibrador.</p>
+<p class="small"><b>Da referência à média:</b> a PR-AUC foi de 0,114 a 0,273 e o F1 de 0,178 a 0,262.</p>
+</div>
+</div>
+<p class="source">Teste fora do tempo, de jan/2025 a mar/2026 (os modelos anteriores à média, até fev/2026), pesando por reais de carteira. Os modelos foram escolhidos olhando o teste: os números são otimistas.</p>
+<aside>[Apresentador 3] Cerca de 1 minuto e 15 segundos. Testamos os modelos em etapas, sempre no mesmo período fora do tempo. A medida aqui é a AUC: a chance de o modelo dar nota maior para um real que vai atrasar do que para um real que não vai. 0,5 é sorteio. A referência, que só repete a taxa atual da UF, faz 0,645. A regressão logística e o XGBoost básico chegam perto de 0,745. O maior salto veio quando incluímos o histórico do próprio perfil: 0,802. O modelo final é a média simples de quatro modelos de árvores, XGBoost, CatBoost, Random Forest e LightGBM, com 0,817. A PR-AUC, que olha só os casos de risco, mais que dobrou: de 0,114 para 0,273. Ser transparente: os modelos foram escolhidos olhando o teste, por orientação do professor, então os números são otimistas. Por que a média simples e não uma combinação mais sofisticada, o colega explica na Parte 5.</aside>
+</section>

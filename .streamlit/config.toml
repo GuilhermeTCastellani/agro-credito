@@ -1,6 +1,12 @@
 [theme]
-primaryColor = "#2e7d32"
-font = "sans serif"
+base = "light"
+primaryColor = "#2F6B4F"
+backgroundColor = "#EEF1EA"
+secondaryBackgroundColor = "#DFE5DA"
+textColor = "#14261D"
+# Sem internet, as fontes caem para as genéricas do sistema.
+font = "IBM Plex Sans:https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap, sans-serif"
+headingFont = "Source Serif 4:https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400..700&display=swap, serif"
 
 [server]
 headless = true

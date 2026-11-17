@@ -115,9 +115,9 @@ ORDEM_PORTE_PF = ["Sem rendimento", "Até 1 salário mínimo", "Mais de 1 a 2 sa
                   "Mais de 5 a 10 salários mínimos", "Mais de 10 a 20 salários mínimos",
                   "Acima de 20 salários mínimos", "Indisponível"]
 ORDEM_PORTE_PJ = ["Micro", "Pequeno", "Médio", "Grande", "Indisponível"]
-FAIXAS = [(0.01, "A", "Muito baixo", "#2e7d32"), (0.03, "B", "Baixo", "#7cb342"),
-          (0.06, "C", "Moderado", "#f9a825"), (0.12, "D", "Alto", "#ef6c00"),
-          (1.01, "E", "Muito alto", "#c62828")]
+FAIXAS = [(0.01, "A", "Muito baixo", "#2F6B4F"), (0.03, "B", "Baixo", "#6E9A6F"),
+          (0.06, "C", "Moderado", "#D99A2B"), (0.12, "D", "Alto", "#C4682B"),
+          (1.01, "E", "Muito alto", "#A63D24")]
 
 
 def fmt_int(n):
@@ -280,18 +280,42 @@ def efeito_txt(contrib, curto=False):
 st.markdown(
     """
     <style>
-      .block-container {padding-top: 1.6rem;}
-      .kpi {border-radius: 10px; padding: 14px 18px; border: 1px solid rgba(128,128,128,.25);
-            min-height: 148px; margin-bottom: 12px;}
-      .kpi h1 {margin: 0; font-size: 2.4rem;}
-      .kpi p {margin: 0; opacity: .75;}
+      .block-container {padding-top: 2.2rem; max-width: 1400px;}
+      .stTabs [data-baseweb="tab"] p {font-size: 1.02rem; font-weight: 500;}
+
+      /* veredito do perfil: o nível de alerta é a informação principal */
+      .veredito .rotulo {margin: 0; color: #5C6A61; font-size: .95rem;}
+      .veredito .nivel {font-family: 'Source Serif 4', Georgia, serif; font-weight: 600; font-size: 3.4rem;
+                        line-height: 1.05; margin: .15rem 0 .25rem;}
+      .veredito .taxa {margin: 0; font-size: 1.15rem;}
+      .veredito .apoio {margin: 0; color: #5C6A61; font-size: .9rem;}
+
+      /* régua de risco: de 0% a 25% ou mais, com os cortes dos níveis */
+      .regua {position: relative; margin: 2.9rem 0 .5rem;}
+      .regua .trilho {display: flex; height: 18px; border-radius: 9px; overflow: hidden;}
+      .regua .zona {height: 100%;}
+      .regua .marca {position: absolute; top: -9px; width: 4px; height: 36px; margin-left: -2px;
+                     background: #14261D; border-radius: 2px;}
+      .regua .marca-txt {position: absolute; top: -2.2rem; transform: translateX(-50%); font-weight: 600;
+                         white-space: nowrap; font-variant-numeric: tabular-nums;}
+      .regua .uf {position: absolute; top: -4px; width: 0; height: 26px; border-left: 2px dashed #14261D; opacity: .55;}
+      .regua-zonas {display: flex; margin: 0 0 .4rem;}
+      .regua-zonas p {margin: 0; font-size: .82rem; color: #5C6A61; padding-right: .5rem;}
+
+      /* parte da carteira em cada nível */
+      .faixa-carteira {display: flex; height: 58px; border-radius: 10px; overflow: hidden; margin: .6rem 0 .3rem;}
+      .faixa-carteira div {display: flex; align-items: center; padding: 0 14px; white-space: nowrap; overflow: hidden;
+                           font-weight: 600; font-variant-numeric: tabular-nums;}
+      .cor-critico {background: #A63D24; color: #FBFCF9;}
+      .cor-atencao {background: #E3B45A; color: #14261D;}
+      .cor-normal {background: #B9CDB9; color: #14261D;}
     </style>
     """,
     unsafe_allow_html=True,
 )
-st.title("🌾 Risco de Crédito Rural")
+st.title("Risco de Crédito Rural")
 st.caption(
-    f"Inadimplência prevista de cada perfil de crédito rural (atraso > 90 dias) daqui a {meta['horizonte_meses']} meses e quais "
+    f"Inadimplência prevista de cada perfil de crédito rural (atraso > 90 dias) daqui a {meta['horizonte_meses']} meses e "
     f"o nível de alerta: **atenção** a partir de {ATENCAO_TXT} e **crítico** a partir de {LIM_TXT} · modelo **{meta['modelo_escolhido']}** treinado com dados oficiais do Banco Central "
     f"(SCR.data) e IBGE · dados até {ctx['data_base'][:7].replace('-', '/')}"
 )
@@ -403,12 +427,43 @@ with aba_avaliar:
         sc = score(p)
         ref_uf = uf_inad / 100
 
-        k1, k2, k3 = st.columns(3)
-        k1.markdown(f"<div class='kpi'><p>Inadimplência prevista do perfil em {meta['horizonte_meses']} meses</p>"
-                    f"<h1 style='color:{cor}'>{fmt_pct(p)}</h1></div>", unsafe_allow_html=True)
-        k2.markdown(f"<div class='kpi'><p>Score (0–1000)</p><h1>{sc}</h1></div>", unsafe_allow_html=True)
-        k3.markdown(f"<div class='kpi'><p>Faixa de risco</p><h1 style='color:{cor}'>{letra}</h1><p>{nome_faixa}</p></div>",
-                    unsafe_allow_html=True)
+        # Veredito e régua: a escala vai de 0% a 25% ou mais, com os cortes dos níveis de alerta.
+        teto = 0.25
+        if p >= LIMITE_CRITICO:
+            nome_nivel, cor_nivel = "Crítico", "#A63D24"
+        elif p >= LIMITE_ATENCAO:
+            nome_nivel, cor_nivel = "Atenção", "#9A6A12"
+        else:
+            nome_nivel, cor_nivel = "Normal", "#2F6B4F"
+        pos = min(p, teto) / teto * 100
+        pos_uf = min(ref_uf, teto) / teto * 100
+        l_at, l_cr = LIMITE_ATENCAO / teto * 100, (LIMITE_CRITICO - LIMITE_ATENCAO) / teto * 100
+        st.markdown(
+            "<div class='veredito'>"
+            f"<p class='rotulo'>Inadimplência prevista do perfil em {meta['horizonte_meses']} meses</p>"
+            f"<p class='nivel' style='color:{cor_nivel}'>{nome_nivel}</p>"
+            f"<p class='taxa'><b>{fmt_pct(p)}</b> da carteira do perfil com atraso acima de 90 dias</p>"
+            "</div>"
+            "<div class='regua'>"
+            f"<span class='marca-txt' style='left:{min(max(pos, 5), 95):.1f}%'>{fmt_pct(p)}</span>"
+            "<div class='trilho'>"
+            f"<div class='zona cor-normal' style='width:{l_at:.1f}%'></div>"
+            f"<div class='zona cor-atencao' style='width:{l_cr:.1f}%'></div>"
+            "<div class='zona cor-critico' style='flex:1'></div>"
+            "</div>"
+            f"<span class='uf' style='left:{pos_uf:.1f}%' title='Nível atual da carteira rural de {uf}'></span>"
+            f"<span class='marca' style='left:{pos:.1f}%'></span>"
+            "</div>"
+            "<div class='regua-zonas'>"
+            f"<p style='width:{l_at:.1f}%'>Normal, abaixo de {ATENCAO_TXT}</p>"
+            f"<p style='width:{l_cr:.1f}%'>Atenção, até {LIM_TXT}</p>"
+            f"<p style='flex:1'>Crítico, a partir de {LIM_TXT} (a escala para em {fmt_pct(teto, 0)})</p>"
+            "</div>"
+            "<div class='veredito'>"
+            f"<p class='apoio'>O traço pontilhado marca o nível atual da carteira rural de {uf}. "
+            f"Score {sc} (de 0 a 1000). Faixa de risco {letra}, {nome_faixa.lower()}.</p>"
+            "</div>",
+            unsafe_allow_html=True)
 
         rel = p / ref_uf if ref_uf > 0 else np.nan
         if np.isfinite(rel):
@@ -443,7 +498,7 @@ with aba_avaliar:
         rotulos_y = [descrever(v, entrada.iloc[0].get(v)) for v in top.index]
         fig = go.Figure(go.Bar(
             x=top.values, y=rotulos_y, orientation="h",
-            marker_color=["#c62828" if v > 0 else "#2e7d32" for v in top.values],
+            marker_color=["#A63D24" if v > 0 else "#2F6B4F" for v in top.values],
             text=[efeito_txt(v, curto=True) for v in top.values], textposition="outside", cliponaxis=False,
             hovertemplate="%{y}<br>%{text}<extra></extra>",
         ))
@@ -564,6 +619,18 @@ with aba_segmentos:
     previsto_carteira = np.average(carteira["previsto"], weights=carteira["peso"])
     atual_carteira = np.average(carteira["atual"], weights=carteira["peso"])
 
+    parte_cr = carteira.loc[carteira["alerta"] == "crítico", "peso"].sum() / total
+    parte_at = carteira.loc[carteira["alerta"] == "atenção", "peso"].sum() / total
+    parte_no = max(1 - parte_cr - parte_at, 0)
+    st.markdown(
+        "<div class='faixa-carteira' role='img' aria-label='Parte da carteira rural em cada nível de alerta'>"
+        f"<div class='cor-critico' style='width:{parte_cr * 100:.1f}%'>Crítico {fmt_pct(parte_cr, 1)}</div>"
+        f"<div class='cor-atencao' style='width:{parte_at * 100:.1f}%'>Atenção {fmt_pct(parte_at, 1)}</div>"
+        f"<div class='cor-normal' style='flex:1'>Normal {fmt_pct(parte_no, 1)}</div>"
+        "</div>",
+        unsafe_allow_html=True)
+    st.caption("Parte da carteira rural, em reais, nos perfis de cada nível de alerta.")
+
     k1, k2, k3 = st.columns(3)
     for col, nivel, rotulo, faixa_txt in [(k1, "crítico", "Perfis críticos", f"a partir de {LIM_TXT}"),
                                           (k2, "atenção", "Perfis em atenção", f"de {ATENCAO_TXT} a {LIM_TXT}")]:
@@ -654,11 +721,11 @@ with aba_modelo:
         fig.add_scatter(x=tudo["mes_alvo"], y=tudo["atual_pct"], name="Inadimplência 6 meses antes", mode="lines",
                         line=dict(color="#9e9e9e", width=2, dash="dot"))
         fig.add_scatter(x=s["mes_alvo"], y=s["previsto_pct"], name="Prevista", mode="lines+markers",
-                        line=dict(color="#ef6c00", width=3))
-        fig.add_scatter(x=s["mes_alvo"], y=s["real_pct"], name="Real", mode="lines+markers", line=dict(color="#1565c0", width=3))
+                        line=dict(color="#D99A2B", width=3))
+        fig.add_scatter(x=s["mes_alvo"], y=s["real_pct"], name="Real", mode="lines+markers", line=dict(color="#14261D", width=3))
         if not proj.empty:
             fig.add_scatter(x=proj["mes_alvo"], y=proj["previsto_pct"], name="Projeção (modelo em produção)", mode="lines+markers",
-                            line=dict(color="#c62828", width=3, dash="dash"), marker=dict(symbol="diamond", size=9))
+                            line=dict(color="#A63D24", width=3, dash="dash"), marker=dict(symbol="diamond", size=9))
         inicio = {j: tudo.loc[tudo["janela"] == j, "mes_alvo"].min() for j in ("val2", "teste", "projecao")}
         for j, rot in (("val2", "validação 2"), ("teste", "teste"), ("projecao", "projeção")):
             if isinstance(inicio[j], str):
@@ -712,8 +779,8 @@ with aba_modelo:
     })
     tab = tab.apply(pd.to_numeric, errors="coerce")
     st.dataframe(tab.style.format(lambda v: "—" if pd.isna(v) else br(v, 4 if abs(v) < 0.1 else 3))
-                 .highlight_max(subset=["AUC", "Gini", "KS", "Precisão", "Recall", "F1"], color="#c8e6c9")
-                 .highlight_min(subset=["Brier"], color="#c8e6c9"),
+                 .highlight_max(subset=["AUC", "Gini", "KS", "Precisão", "Recall", "F1"], color="#D5E3D3")
+                 .highlight_min(subset=["Brier"], color="#D5E3D3"),
                  use_container_width=True)
     st.caption("Precisão, recall e F1 medem reais de carteira, não número de produtores. Em cada mês, são sinalizados os "
                "perfis de maior risco até completar a fatia-alvo, ajustada na validação. Brier menor é melhor. "
@@ -746,12 +813,12 @@ with aba_modelo:
         st.markdown("**Calibração no teste (por decil de risco previsto)**")
         cal = pd.DataFrame(meta["calibracao_teste"][meta["modelo_escolhido"]])
         fig = go.Figure()
-        fig.add_bar(x=cal["faixa"] + 1, y=cal["real_pct"], name="Real", marker_color="#8d6e63")
+        fig.add_bar(x=cal["faixa"] + 1, y=cal["real_pct"], name="Real", marker_color="#8A7B66")
         cal_bruta = pd.DataFrame(meta["calibracao_teste_bruta"][meta["modelo_escolhido"]])
         fig.add_scatter(x=cal_bruta["faixa"] + 1, y=cal_bruta["prev_pct"], name="Previsto sem calibrar", mode="lines+markers",
                         line=dict(color="#9e9e9e", width=2, dash="dot"))
         fig.add_scatter(x=cal["faixa"] + 1, y=cal["prev_pct"], name="Previsto calibrado", mode="lines+markers",
-                        line=dict(color="#2e7d32", width=3))
+                        line=dict(color="#2F6B4F", width=3))
         fig.update_layout(height=340, xaxis_title="decil de risco previsto", yaxis_title="inadimplência (%)",
                           margin=dict(l=10, r=10, t=10, b=10), legend=dict(orientation="h", y=1.1),
                           paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
@@ -760,7 +827,7 @@ with aba_modelo:
         st.markdown("**Importância global (média do |SHAP|)**")
         imp = pd.Series(meta["importancia_shap_global"]).drop("calibracao", errors="ignore").sort_values()
         fig = go.Figure(go.Bar(x=imp.values, y=[ROTULOS[i] for i in imp.index], orientation="h",
-                               marker_color="#558b2f"))
+                               marker_color="#6E9A6F"))
         fig.update_layout(height=340, margin=dict(l=10, r=10, t=10, b=10),
                           paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
         st.plotly_chart(fig, use_container_width=True)
@@ -768,7 +835,7 @@ with aba_modelo:
     st.markdown("**Precisão, recall e F1 por threshold (teste)**")
     curva = pd.DataFrame(meta["curva_limiar_teste"][meta["modelo_escolhido"]]).sort_values("limiar_pct")
     fig = go.Figure()
-    for col, nome, cor in [("precisao", "Precisão", "#8d6e63"), ("recall", "Recall", "#558b2f"), ("f1", "F1", "#2e7d32")]:
+    for col, nome, cor in [("precisao", "Precisão", "#8A7B66"), ("recall", "Recall", "#6E9A6F"), ("f1", "F1", "#2F6B4F")]:
         fig.add_scatter(x=curva["limiar_pct"], y=curva[col], name=nome, mode="lines", line=dict(color=cor, width=3))
     linha = float(meta["comparacao"][meta["modelo_escolhido"]]["limiar_pct"])
     fig.add_vline(x=linha, line_dash="dash", line_color="gray",
@@ -785,8 +852,8 @@ with aba_modelo:
             st.markdown("**Benefício líquido por alarmes falsos aceitos (teste)**")
             ben = pd.DataFrame(meta["beneficio_teste"][escolhido])
             fig = go.Figure()
-            fig.add_scatter(x=ben["alarmes_por_acerto"], y=ben["modelo"], name="Modelo", mode="lines+markers", line=dict(color="#2e7d32", width=3))
-            fig.add_scatter(x=ben["alarmes_por_acerto"], y=ben["todos"], name="Sinalizar todos", mode="lines+markers", line=dict(color="#8d6e63", dash="dot"))
+            fig.add_scatter(x=ben["alarmes_por_acerto"], y=ben["modelo"], name="Modelo", mode="lines+markers", line=dict(color="#2F6B4F", width=3))
+            fig.add_scatter(x=ben["alarmes_por_acerto"], y=ben["todos"], name="Sinalizar todos", mode="lines+markers", line=dict(color="#8A7B66", dash="dot"))
             fig.add_hline(y=0, line_color="gray", annotation_text="Sinalizar ninguém")
             fig.update_layout(height=320, xaxis_title="alarmes falsos aceitos por real inadimplente", yaxis_title="benefício líquido por real",
                               margin=dict(l=10, r=10, t=30, b=10), legend=dict(orientation="h", y=1.12),
@@ -796,8 +863,8 @@ with aba_modelo:
             st.markdown("**Probabilidade prevista por resultado real (teste)**")
             dist = meta["distribuicao_teste"][escolhido]
             fig = go.Figure()
-            fig.add_scatter(x=dist["centro_pct"], y=dist["adimplentes"], name="Adimplentes", mode="lines", line=dict(color="#558b2f", width=3))
-            fig.add_scatter(x=dist["centro_pct"], y=dist["inadimplentes"], name="Inadimplentes", mode="lines", line=dict(color="#c62828", width=3))
+            fig.add_scatter(x=dist["centro_pct"], y=dist["adimplentes"], name="Adimplentes", mode="lines", line=dict(color="#6E9A6F", width=3))
+            fig.add_scatter(x=dist["centro_pct"], y=dist["inadimplentes"], name="Inadimplentes", mode="lines", line=dict(color="#A63D24", width=3))
             fig.update_layout(height=320, xaxis_title="probabilidade prevista (%)", yaxis_title="fração da exposição",
                               margin=dict(l=10, r=10, t=30, b=10), legend=dict(orientation="h", y=1.12),
                               paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
@@ -814,7 +881,7 @@ with aba_modelo:
     st.markdown("**Inadimplência da carteira rural brasileira (SCR.data)**")
     h = pd.DataFrame(meta["historico"])
     fig = go.Figure()
-    for cli, cor in [("PF", "#2e7d32"), ("PJ", "#8d6e63")]:
+    for cli, cor in [("PF", "#2F6B4F"), ("PJ", "#8A7B66")]:
         s = h[h.cliente == cli]
         fig.add_scatter(x=s["data"], y=s["inad_pct"], name=cli, mode="lines", line=dict(color=cor, width=3))
     fig.update_layout(height=300, yaxis_title="% da carteira com atraso > 90 dias", margin=dict(l=10, r=10, t=10, b=10),

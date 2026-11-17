@@ -1,0 +1,24 @@
+<section id="metricas" data-transition="fade" style="background:#F5F2EA;color:#15281D;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:40px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;letter-spacing:4px;text-transform:uppercase;color:#A8481F;font-weight:600">Parte 5 · Resultado no teste</p>
+<h2 style="font-family:Fraunces, Georgia, serif;font-size:72px;font-weight:600;line-height:1.1">O modelo supera as regras simples</h2>
+</div>
+<table style="font-size:26px;color:#15281D">
+<tr><th style="width:24%;text-align:left">Sinalização</th><th style="width:11%;text-align:right">Precisão</th><th style="width:10%;text-align:right">Recall</th><th style="width:10%;text-align:right">F1</th><th style="width:16%;text-align:right">F1 repetindo nível atual</th><th style="width:15%;text-align:right">F1 sinalizando tudo</th><th style="width:14%;text-align:right">Carteira sinalizada</th></tr>
+<tr style="background:#EAE5D7"><td><b>Crítico (≥ 10%)</b></td><td style="text-align:right">0,691</td><td style="text-align:right">0,628</td><td style="text-align:right"><b>0,658</b></td><td style="text-align:right">0,551</td><td style="text-align:right">0,296</td><td style="text-align:right">16%</td></tr>
+<tr><td><b>Atenção ou crítico (≥ 5%)</b></td><td style="text-align:right">0,729</td><td style="text-align:right">0,858</td><td style="text-align:right"><b>0,789</b></td><td style="text-align:right">0,681</td><td style="text-align:right">0,502</td><td style="text-align:right">39%</td></tr>
+<tr><td>Referência: ≥ 20%</td><td style="text-align:right">0,719</td><td style="text-align:right">0,375</td><td style="text-align:right">0,493</td><td style="text-align:right">0,461</td><td style="text-align:right">0,129</td><td style="text-align:right">4%</td></tr>
+</table>
+<div style="display:flex;gap:32px">
+<div style="flex:1;display:flex;flex-direction:column;gap:8px;border-left:6px solid #A8481F;padding:8px 0 8px 32px">
+<h3 style="font-size:32px;font-weight:600">Crítico: 69% de acerto</h3>
+<p style="font-size:24px;line-height:1.4;color:#4A5A4F">Da carteira marcada como crítica, 69% de fato passou de 10%</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:8px;border-left:6px solid #E2A93B;padding:8px 0 8px 32px">
+<h3 style="font-size:32px;font-weight:600">Ganho de cerca de 0,11 no F1</h3>
+<p style="font-size:24px;line-height:1.4;color:#4A5A4F">Sobre repetir o nível atual, em 5% e em 10%</p>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1664px;font-size:24px;color:#4A5A4F">Perfis de jan/2025 a fev/2026, pesando por reais de carteira · Limites e modelo escolhidos após ver o teste</p>
+<aside>[Apresentador 5] Cerca de 1 minuto e meio. Comparamos o modelo com duas regras simples: repetir a inadimplência de hoje e sinalizar todo mundo. No nível crítico, a precisão é 0,691: de cada 100 reais marcados como críticos, 69 eram de perfis que de fato passaram de 10%. O recall é 0,628. O F1 de 0,658 ganha com folga das duas regras. Se perguntarem por que o F1 de 5% é maior: mais carteira passa de 5%, então até sinalizar tudo já dá 0,50; o ganho sobre repetir o nível atual é o mesmo nos dois limites. Este F1 não se compara com o 0,272 do slide anterior, que mede outra pergunta.</aside>
+</section>
