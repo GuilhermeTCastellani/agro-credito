@@ -529,75 +529,191 @@ with aba_avaliar:
                 "brasileira agregada. Use como apoio à análise, não como decisão automática de crédito.", icon="ℹ️")
 
 # ================================================================== LOTE
+# Colunas da planilha de lote: nome que a pessoa vê -> nome interno do modelo.
+LOTE_COLUNAS = {
+    "Identificação": "id_produtor",
+    "UF": "uf",
+    "Tipo de tomador": "cliente",
+    "Ocupação ou atividade": "ocupacao_atividade",
+    "Renda (PF) ou porte (PJ)": "porte",
+    "Finalidade": "submodalidade",
+    "Instituição credora": "segmento",
+    "Origem dos recursos": "origem",
+    "Indexador": "indexador",
+    "Valor da operação (R$ mil)": "valor_medio_operacao_mil",
+    "Prazo restante (anos)": "prazo_remanescente_anos",
+}
+LOTE_OBRIGATORIAS = [c for c in LOTE_COLUNAS.values() if c != "id_produtor"]
+LOTE_CATEGORICAS = ["uf", "cliente", "ocupacao_atividade", "porte", "submodalidade", "segmento", "origem", "indexador"]
+LOTE_NUMERICAS = ["valor_medio_operacao_mil", "prazo_remanescente_anos"]
+LOTE_NOME = {v: k for k, v in LOTE_COLUNAS.items()}
+TOMADOR = {"pf": "PF", "pessoa fisica": "PF", "pessoa física": "PF", "pj": "PJ", "pessoa juridica": "PJ",
+           "pessoa jurídica": "PJ"}
+
+
+def _chave(texto) -> str:
+    return " ".join(str(texto).strip().lower().split())
+
+
+def lote_planilha_modelo() -> bytes:
+    """Planilha de exemplo em CSV para o Excel em português: ponto e vírgula, vírgula decimal e acentos preservados."""
+    exemplo = pd.DataFrame([
+        ["Produtor 1", "RS", "Pessoa física", "Autônomo", "Mais de 5 a 10 salários mínimos", "Custeio", "Cooperativa",
+         "Com destinação específica", "Prefixado", 150, 1],
+        ["Produtor 2", "MA", "Pessoa física", "Autônomo", "Mais de 3 a 5 salários mínimos", "Custeio", "Banco",
+         "Com destinação específica", "Prefixado", 80, 1],
+        ["Fazenda 3", "MT", "Pessoa jurídica", "Agricultura, pecuária, produção florestal, pesca e aquicultura", "Médio",
+         "Investimento", "Banco", "Sem destinação específica", "Pós-fixado", 2500, 4],
+    ], columns=list(LOTE_COLUNAS))
+    return exemplo.to_csv(index=False, sep=";", decimal=",").encode("utf-8-sig")
+
+
+def lote_ler(arquivo) -> pd.DataFrame:
+    """Lê o CSV aceitando ponto e vírgula ou vírgula, UTF-8 ou Latin-1, e cabeçalhos em português ou internos."""
+    bruto = arquivo.getvalue()
+    try:
+        texto = bruto.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        texto = bruto.decode("latin-1")
+    df = pd.read_csv(io.StringIO(texto), sep=None, engine="python", dtype=str, skipinitialspace=True)
+    pelo_nome = {_chave(k): v for k, v in LOTE_COLUNAS.items()} | {_chave(v): v for v in LOTE_COLUNAS.values()}
+    return df.rename(columns=lambda c: pelo_nome.get(_chave(c), c))
+
+
+def lote_validar(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
+    """Padroniza os valores e devolve as linhas válidas e a lista de problemas, por linha da planilha."""
+    df = df.dropna(how="all").copy()
+    problemas = []
+    validas = pd.Series(True, index=df.index)
+    for c in LOTE_CATEGORICAS:
+        opcoes = {_chave(o): o for o in OPC[c]}
+        if c == "cliente":
+            opcoes |= TOMADOR
+        valores = df[c].map(lambda v: opcoes.get(_chave(v)) if pd.notna(v) else None)
+        for i in df.index[valores.isna()]:
+            original = df.at[i, c]
+            vazio = pd.isna(original) or not str(original).strip()
+            problemas.append(f"Linha {i + 2}, coluna “{LOTE_NOME[c]}”: "
+                             + ("está vazia." if vazio else f"“{original}” não é um valor aceito."))
+        validas &= valores.notna()
+        df[c] = valores
+    for c in LOTE_NUMERICAS:
+        # "1.500,5" e "1,5" (padrão brasileiro) viram 1500.5 e 1.5; "1.5" e "2500" ficam como estão.
+        bruto = df[c].astype(str).str.strip()
+        brasileiro = bruto.str.contains(",", regex=False)
+        texto = bruto.where(~brasileiro, bruto.str.replace(".", "", regex=False).str.replace(",", ".", regex=False))
+        numeros = pd.to_numeric(texto, errors="coerce")
+        for i in df.index[numeros.isna() | (numeros < 0)]:
+            problemas.append(f"Linha {i + 2}, coluna “{LOTE_NOME[c]}”: “{df.at[i, c]}” não é um número válido.")
+        validas &= numeros.notna() & (numeros >= 0)
+        df[c] = numeros
+    if "id_produtor" not in df.columns:
+        df["id_produtor"] = [f"Linha {i + 2}" for i in df.index]
+    df["linha"] = df.index + 2
+    return df[validas], problemas
+
+
 with aba_lote:
     st.subheader("Avaliar vários perfis de uma vez")
-    st.write("Envie um CSV com uma linha por produtor ou perfil. Colunas de cenário ausentes são preenchidas "
-             f"automaticamente com os dados oficiais mais recentes da UF. A coluna `nivel_alerta` traz "
-             f"crítico (a partir de {LIM_TXT}), atenção (de {ATENCAO_TXT} a {LIM_TXT}) ou normal.")
-    perfil_cols = ["uf", "cliente", "ocupacao_atividade", "porte", "submodalidade", "segmento",
-                   "origem", "indexador", "valor_medio_operacao_mil", "prazo_remanescente_anos"]
-    modelo_csv = pd.DataFrame([
-        {"id_produtor": "P001", "uf": "RS", "cliente": "PF", "ocupacao_atividade": "Autônomo",
-         "porte": "Mais de 5 a 10 salários mínimos", "submodalidade": "Custeio", "segmento": "Cooperativa",
-         "origem": "Com destinação específica", "indexador": "Prefixado",
-         "valor_medio_operacao_mil": 150, "prazo_remanescente_anos": 1.0},
-        {"id_produtor": "P002", "uf": "MT", "cliente": "PJ",
-         "ocupacao_atividade": "Agricultura, pecuária, produção florestal, pesca e aquicultura",
-         "porte": "Médio", "submodalidade": "Investimento", "segmento": "Banco",
-         "origem": "Sem destinação específica", "indexador": "Pós-fixado",
-         "valor_medio_operacao_mil": 2500, "prazo_remanescente_anos": 4.0},
-    ])
-    st.download_button("Baixar modelo de CSV", modelo_csv.to_csv(index=False).encode("utf-8"),
-                       "modelo_produtores.csv", "text/csv")
-    with st.expander("Valores aceitos em cada coluna"):
-        for c in ["cliente", "segmento", "submodalidade", "origem", "indexador", "porte", "ocupacao_atividade"]:
-            st.markdown(f"**{c}**: " + " · ".join(OPC[c]))
+    st.write(f"Preencha uma planilha com uma linha por produtor e envie aqui. O resultado traz o nível de alerta de cada um "
+             f"(crítico a partir de {LIM_TXT}, atenção de {ATENCAO_TXT} a {LIM_TXT}) e o que mais pesou. O cenário da UF "
+             f"(juros, safra, preços e inadimplência local) é preenchido com os dados oficiais de "
+             f"{ctx['data_base'][:7].replace('-', '/')}.")
 
-    arq = st.file_uploader("CSV de produtores", type="csv")
+    st.markdown("**1. Baixe a planilha de exemplo**")
+    st.download_button("Baixar planilha de exemplo", lote_planilha_modelo(), "planilha_produtores.csv", "text/csv")
+    st.caption("Abre direto no Excel ou no Google Planilhas. Apague as linhas de exemplo e escreva as suas; mantenha os "
+               "nomes das colunas. Salve como CSV.")
+
+    st.markdown("**2. Preencha uma linha por produtor**")
+    pf = ", ".join(OPC["ocupacao_PF"][:3])
+    renda = [p for p in ORDEM_PORTE_PF if p in OPC["porte_PF"]]
+    instrucoes = pd.DataFrame([
+        ["Identificação", "Um nome ou código seu, para achar a linha no resultado (opcional)", "Produtor 1"],
+        ["UF", "Sigla do estado do tomador", "RS, MA, MT"],
+        ["Tipo de tomador", "Pessoa física ou pessoa jurídica", "Pessoa física"],
+        ["Ocupação ou atividade", f"Pessoa física: a ocupação ({pf}...). Pessoa jurídica: o setor da empresa",
+         "Autônomo"],
+        ["Renda (PF) ou porte (PJ)", f"Pessoa física: a faixa de renda ({renda[1]}...). Pessoa jurídica: Micro, Pequeno, "
+         "Médio ou Grande", "Mais de 5 a 10 salários mínimos"],
+        ["Finalidade", "Para que é o crédito: " + ", ".join(OPC["submodalidade"]), "Custeio"],
+        ["Instituição credora", "Quem empresta: " + ", ".join(OPC["segmento"]), "Cooperativa"],
+        ["Origem dos recursos", "Com destinação específica (crédito direcionado, como o do Plano Safra) ou sem destinação "
+         "específica (recursos livres)", "Com destinação específica"],
+        ["Indexador", "Como os juros são corrigidos: " + ", ".join(OPC["indexador"]), "Prefixado"],
+        ["Valor da operação (R$ mil)", "Valor emprestado, em milhares de reais", "150"],
+        ["Prazo restante (anos)", "Quanto falta para a operação vencer", "1,5"],
+    ], columns=["Coluna", "O que preencher", "Exemplo"])
+    # Tabela em markdown para o texto quebrar linha em vez de ser cortado.
+    st.markdown("| Coluna | O que preencher | Exemplo |\n|---|---|---|\n" + "\n".join(
+        f"| **{col}** | {oque} | {ex} |" for col, oque, ex in instrucoes.itertuples(index=False, name=None)))
+    with st.expander("Lista completa de valores aceitos"):
+        for c, rotulo in [("ocupacao_PF", "Ocupação (pessoa física)"), ("ocupacao_PJ", "Atividade (pessoa jurídica)"),
+                          ("porte_PF", "Renda (pessoa física)"), ("porte_PJ", "Porte (pessoa jurídica)"), ("uf", "UF")]:
+            st.markdown(f"**{rotulo}:** " + "; ".join(OPC[c]))
+        st.caption("Maiúsculas, minúsculas e espaços a mais não importam. Em Tipo de tomador, PF e PJ também valem.")
+
+    st.markdown("**3. Envie a planilha preenchida**")
+    arq = st.file_uploader("Planilha de produtores (CSV)", type="csv")
     if arq is not None:
-        lote = pd.read_csv(arq)
-        faltam = [c for c in perfil_cols if c not in lote.columns]
+        try:
+            lote = lote_ler(arq)
+        except Exception:
+            st.error("Não consegui ler o arquivo. Salve a planilha como CSV (no Excel: Arquivo › Salvar como › CSV) e "
+                     "envie de novo.")
+            st.stop()
+        faltam = [LOTE_NOME[c] for c in LOTE_OBRIGATORIAS if c not in lote.columns]
         if faltam:
-            st.error("Colunas obrigatórias ausentes: " + ", ".join(faltam))
+            st.error("Faltam estas colunas na planilha: " + "; ".join(faltam) + ". Use os nomes da planilha de exemplo.")
         else:
-            lote["regiao"] = lote["uf"].map(REGIAO)
-            for c, v in ctx["macro"].items():
-                if c not in lote.columns:
+            lote, problemas = lote_validar(lote)
+            if problemas:
+                st.warning(f"{len(problemas)} problema(s) na planilha; essas linhas ficaram de fora do resultado. "
+                           "Corrija e envie de novo:\n\n" + "\n".join(f"- {p}" for p in problemas[:20])
+                           + ("\n- ..." if len(problemas) > 20 else ""))
+            if lote.empty:
+                st.error("Nenhuma linha válida para avaliar.")
+            else:
+                lote["regiao"] = lote["uf"].map(REGIAO)
+                for c, v in ctx["macro"].items():
                     lote[c] = v
-            for c in ["safra_anomalia_pct", "safra_perda_area_pct", "safra_var_producao_pct",
-                      "uf_inad_atual_pct", "uf_atraso_15_90_pct", "uf_inad_var_6m_pp"] + COLS_PRECOS:
-                if c not in lote.columns:
+                for c in ["safra_anomalia_pct", "safra_perda_area_pct", "safra_var_producao_pct",
+                          "uf_inad_atual_pct", "uf_atraso_15_90_pct", "uf_inad_var_6m_pp"] + COLS_PRECOS:
                     lote[c] = lote["uf"].map(lambda u, c=c: (ctx["uf"].get(u) or {}).get(c))
-            lote = preencher_perfil(lote)
-            invalidos = {c: sorted(set(lote[c]) - set(OPC[c])) for c in
-                         ["uf", "cliente", "segmento", "submodalidade", "origem", "indexador", "porte", "ocupacao_atividade"]
-                         if c in OPC}
-            invalidos = {k: v for k, v in invalidos.items() if v}
-            if invalidos:
-                st.warning("Valores não reconhecidos (serão tratados como categoria rara): " +
-                           "; ".join(f"{k}: {v}" for k, v in invalidos.items()))
-            probs = prever(lote)
-            sv = explicar(lote)
-            lote["prob_inadimplencia_pct"] = (probs * 100).round(2)
-            lote["score"] = [score(x) for x in probs]
-            lote["faixa"] = [faixa(x)[0] for x in probs]
-            lote["nivel_alerta"] = nivel_alerta(probs)
-            # fatores do próprio perfil/operação (o cenário regional é igual para todos da mesma UF)
-            CENARIO = {"uf_inad_atual_pct", "uf_atraso_15_90_pct", "uf_inad_var_6m_pp", "selic", "ipca_12m",
-                       "dolar_var12m", "safra_anomalia_pct", "safra_perda_area_pct", "safra_var_producao_pct",
-                       *COLS_PRECOS}
-            svp = sv[[c for c in sv.columns if c not in CENARIO | {"calibracao"}]]
-            lote["principal_fator_risco"] = [descrever(svp.iloc[i].idxmax(), lote.iloc[i][svp.iloc[i].idxmax()])
-                                             for i in range(len(lote))]
-            lote["principal_atenuante"] = [descrever(svp.iloc[i].idxmin(), lote.iloc[i][svp.iloc[i].idxmin()])
-                                           for i in range(len(lote))]
-            lote["efeito_cenario_uf"] = [efeito_txt(sv.iloc[i][[c for c in sv.columns if c in CENARIO]].sum())
-                                         for i in range(len(lote))]
-            mostrar = [c for c in ["id_produtor"] if c in lote.columns] + perfil_cols[:2] + \
-                      ["prob_inadimplencia_pct", "nivel_alerta", "score", "faixa", "principal_fator_risco", "principal_atenuante", "efeito_cenario_uf"]
-            st.dataframe(lote[mostrar], use_container_width=True, hide_index=True)
-            st.download_button("Baixar resultado", lote.to_csv(index=False).encode("utf-8"),
-                               "resultado_risco.csv", "text/csv")
+                lote = preencher_perfil(lote.reset_index(drop=True))
+                probs = prever(lote)
+                sv = explicar(lote)
+                CENARIO = {"uf_inad_atual_pct", "uf_atraso_15_90_pct", "uf_inad_var_6m_pp", "selic", "ipca_12m",
+                           "dolar_var12m", "safra_anomalia_pct", "safra_perda_area_pct", "safra_var_producao_pct",
+                           *COLS_PRECOS}
+                svp = sv[[c for c in sv.columns if c not in CENARIO | {"calibracao"}]]
+                niveis = nivel_alerta(probs)
+                resultado = pd.DataFrame({
+                    "Identificação": lote["id_produtor"],
+                    "Nível de alerta": [str(n).capitalize() for n in niveis],
+                    "Inadimplência prevista em 6 meses": [fmt_pct(x, 1) for x in probs],
+                    "Principal fator de risco": [descrever(svp.iloc[i].idxmax(), lote.iloc[i][svp.iloc[i].idxmax()])
+                                                 for i in range(len(lote))],
+                    "Principal atenuante": [descrever(svp.iloc[i].idxmin(), lote.iloc[i][svp.iloc[i].idxmin()])
+                                            for i in range(len(lote))],
+                    "Histórico do perfil": np.where(lote["perfil_encontrado"], "Encontrado na carteira",
+                                                    "Sem histórico: usa o nível da UF"),
+                    "UF": lote["uf"],
+                    "Tipo de tomador": lote["cliente"].map({"PF": "Pessoa física", "PJ": "Pessoa jurídica"}),
+                    "Finalidade": lote["submodalidade"],
+                    "Instituição credora": lote["segmento"],
+                    "Linha da planilha": lote["linha"],
+                })
+                resultado = resultado.assign(_ordem=probs).sort_values("_ordem", ascending=False).drop(columns="_ordem")
+                contagem = pd.Series(niveis).value_counts()
+                st.markdown(f"**Resultado: {len(resultado)} produtor(es) avaliado(s)** · "
+                            f"{contagem.get('crítico', 0)} crítico(s), {contagem.get('atenção', 0)} em atenção, "
+                            f"{contagem.get('normal', 0)} normal(is). Ordenado do maior para o menor risco.")
+                st.dataframe(resultado, use_container_width=True, hide_index=True)
+                st.caption("“Sem histórico” quer dizer que essa combinação de características não aparece na carteira do "
+                           "Banco Central; a previsão parte do nível da UF e é menos precisa.")
+                st.download_button("Baixar resultado", resultado.to_csv(index=False, sep=";").encode("utf-8-sig"),
+                                   "resultado_risco.csv", "text/csv")
 
 # ================================================================== PERFIS EM ALERTA
 @st.cache_data(show_spinner="Calculando o risco dos perfis da carteira atual...")

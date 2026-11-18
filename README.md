@@ -9,24 +9,63 @@ de **perfis em alerta** da carteira, ordenada pelo valor em risco.
 Treinado **exclusivamente com dados oficiais e públicos** (Banco Central e IBGE), sem dados sintéticos. Dashboard em Streamlit
 com explicabilidade via SHAP.
 
-## Rodar o dashboard
+## Como rodar
 
-```bash
-pip install -r requirements.txt
-streamlit run app.py
+Há três níveis, do mais rápido ao mais completo. Para a maioria das pessoas, basta o primeiro.
+
+| Quero... | Precisa de | Tempo |
+|---|---|---|
+| 1. Abrir o dashboard | Python, este repositório e a pasta de modelos (`modelos/ensemble/final/`) | 10 minutos |
+| 2. Atualizar com meses novos do Banco Central | o nível 1 e internet | cerca de 1 hora |
+| 3. Retreinar os modelos | o nível 2 e o Google Colab (GPU) | algumas horas |
+
+### 1. Abrir o dashboard
+
+**Requisitos:** Python 3.14 (foi o testado; versões a partir de 3.12 devem funcionar) e cerca de 4 GB de memória livre.
+Feche programas pesados antes: o computador de desenvolvimento tem 7,4 GB e o dashboard já caiu por falta de memória.
+
+**a) Baixe o projeto e instale as dependências.** No Windows (PowerShell), na pasta do projeto:
+
+```powershell
+git clone https://github.com/GuilhermeTCastellani/agro-credito.git
+cd agro-credito
+python -m venv .venv
+.venv\Scripts\python -m pip install -r requirements.txt
 ```
 
-O modelo treinado já vem em `modelos/`, então o dashboard abre direto. Abas:
+No Linux ou no macOS, troque `.venv\Scripts\python` por `.venv/bin/python`.
 
-- **Perfis em alerta** — quantos perfis da carteira mais recente estão críticos ou em atenção, a lista ordenada pelo valor em
-  risco, a medição do teste e a visão agregada por segmento UF × finalidade.
-- **Avaliar perfil** — o analista informa o perfil e a operação; recebe a inadimplência prevista, o nível de alerta,
-  score (0–1000), faixa (A–E) e os fatores que mais pesaram (SHAP). O cenário de safra e crédito da UF vem preenchido com os dados
-  oficiais mais recentes e pode ser alterado para testes de estresse.
-- **Avaliação em lote** — upload de CSV; devolve a previsão, a coluna `nivel_alerta`, score, faixa, principal fator de risco e
-  principal atenuante de cada linha.
-- **Desempenho do modelo** — abre com a medição por perfil e segue com a comparação dos modelos de base, calibração e importância.
-- **Dados e método** — fontes, método e limitações.
+**b) Coloque os modelos na pasta certa.** Os quatro modelos em produção somam cerca de 130 MB e **não vão para o Git**. Peça ao
+grupo a pasta `modelos/ensemble/final/` (ou um zip dela) e copie-a para o mesmo caminho dentro do projeto. Ela deve conter
+`ensemble.joblib` e as subpastas `catboost/`, `lightgbm/`, `random_forest/` e `xgboost/`. Sem ela, o dashboard para com a mensagem
+"os modelos do ensemble não estão em modelos/ensemble/final". Os dados de que o dashboard precisa (`dados/processados/`) já vêm
+no repositório.
+
+**c) Suba o dashboard:**
+
+```powershell
+.venv\Scripts\python -m streamlit run app.py
+```
+
+Ele abre em http://localhost:8501. A primeira carga leva alguns segundos, porque o modelo vai para a memória.
+
+**d) Opcional: confira que está tudo certo** (cerca de 2,5 minutos, 87 testes):
+
+```powershell
+.venv\Scripts\python -m pytest tests -q
+```
+
+### O que o dashboard mostra
+
+- **Perfis em alerta**: quanto da carteira mais recente está em cada nível, a lista dos perfis com mais dinheiro em risco, a
+  medição do teste e a visão agregada por UF e finalidade.
+- **Avaliar perfil**: a pessoa escolhe o perfil e a operação e recebe o veredito (normal, atenção ou crítico), a inadimplência
+  prevista numa régua de risco e os fatores que mais pesaram (SHAP). O cenário da UF vem com os dados oficiais mais recentes e
+  pode ser alterado para testar cenários.
+- **Avaliação em lote**: baixa uma planilha de exemplo (abre direto no Excel), preenche uma linha por produtor e envia. O
+  resultado traz o nível de alerta, a inadimplência prevista, o principal fator de risco e o principal atenuante de cada linha.
+- **Desempenho do modelo**: a medição por perfil, a comparação dos modelos, o previsto contra o real mês a mês e a calibração.
+- **Dados e método**: fontes, método e limitações.
 
 ## Resultado principal: perfis em alerta (teste)
 
@@ -177,7 +216,36 @@ inadimplência em 6 meses, contra 7,2% hoje.
 **Alvo:** fração da carteira daquele perfil com atraso > 90 dias seis meses depois, ponderada pela exposição em reais
 (cada perfil entra como R$ adimplentes e R$ inadimplentes). As métricas usam essa mesma ponderação.
 
-## Reconstruir do zero
+## Atualizar e retreinar
+
+### 2. Atualizar com meses novos do Banco Central
+
+O SCR.data sai com cerca de 30 dias de defasagem. Para incluir um mês novo sem retreinar os modelos:
+
+```powershell
+$env:PYTHONUTF8 = "1"
+Remove-Item dados\intermediarios\scr_rural.parquet   # força a extração de novo; sem isso a coleta pula o SCR
+.venv\Scripts\python src\coleta.py      # baixa SCR.data (~800 MB em dados/brutos), IBGE, SGS, Banco Mundial e Conab
+.venv\Scripts\python src\features.py    # remonta a base, o contexto por UF e o histórico dos perfis
+.venv\Scripts\python src\segmentos.py   # refaz os níveis de alerta, o previsto × real e a projeção
+```
+
+Depois reinicie o dashboard: ele guarda o modelo e os dados em cache.
+
+### 3. Retreinar os modelos
+
+Os quatro modelos (XGBoost, CatBoost, Random Forest e LightGBM) são treinados no Google Colab, com GPU, porque não cabem na
+memória de um computador comum. O caminho é:
+
+1. Rodar `notebooks/retreino_colab.ipynb` no Colab. O notebook clona este repositório (precisa do secret `GITHUB_TOKEN` na conta)
+   e salva o resultado em `MyDrive/agro-credito/progresso/retreino_set2026/retreino.zip`.
+2. Baixar o `retreino.zip` para a pasta Downloads e rodar `.venv\Scripts\python src\instalar_retreino.py`, que instala os modelos
+   em `modelos/ensemble/final/` (com backup do anterior), mede o teste e reescreve `modelos/metadados.json`.
+3. Rodar `.venv\Scripts\python src\segmentos.py` e os testes.
+
+Os outros notebooks (`treino_colab.ipynb` e `backtest_colab.ipynb`) refazem a busca de hiperparâmetros e o backtest trimestral.
+
+### Referência: todos os scripts
 
 ```bash
 python src/coleta.py      # baixa SCR.data (~800 MB), IBGE, SGS, Banco Mundial e Conab; extrai a carteira rural
@@ -186,12 +254,13 @@ python src/treino.py      # modelos de base: busca pelo Brier, decide por F1 e A
 python src/montar_ensemble.py  # instala o ensemble treinado no Colab em modelos/ensemble/final/
 python src/comparar_media.py   # prepara a média simples dos quatro modelos em modelos/ensemble/media/
 python src/instalar_media.py   # põe a média em produção (backup em modelos/backup_antes_media/)
+python src/backtest.py         # compara as formas de combinar os modelos com as previsões do backtest do Colab
+python src/instalar_retreino.py  # instala o retreino do Colab (retreino.zip) em modelos/ensemble/final/
 python src/segmentos.py   # mede no teste os perfis e segmentos acima de 5%, 10% e 20%
 python src/trocar_criterio.py f1  # opcional: alterna o critério entre f1_auc (padrão), f1 e beneficio, sem retreinar
 python -m pytest tests -q # testes de fumaça (modelo, aditividade do SHAP, dashboard)
 ```
 
-Para atualizar mensalmente, basta rodar os três scripts de novo: o SCR.data sai com cerca de 30 dias de defasagem.
 Se `dados/intermediarios/scr_rural.parquet` já existir, a coleta pula a extração; apague-o para refazer.
 
 ## Estrutura

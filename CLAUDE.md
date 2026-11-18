@@ -69,7 +69,17 @@ Responda em português do Brasil. **Nunca faça commit nem push sem pedido expl�
 - Este PC tem só 7,4 GB de RAM: feche programas antes de treinar. O Colab do usuário agora é Pro, numa conta pessoal; o progresso fica em
   `MyDrive/agro-credito/progresso`, e o secret `GITHUB_TOKEN` precisa existir na conta usada.
 
-### Retomada (parou em 2026-11-16 à noite)
+### Retomada (parou em 2026-11-17 à noite)
+
+- **Sessão de 17/11:** não haverá demonstração ao vivo; o slide 12 do deck mostra duas capturas do dashboard (alertas e um perfil
+  crítico em MA, banco). Slide 13 ganhou "Integrar: uma API" como próximo passo (a API não foi construída, decisão do usuário).
+  Nomes do grupo já estão na capa. Roteiro em `apresentacao/roteiro-apresentacao.docx` (falas, tempos, perguntas prováveis,
+  checklist); falta preencher quem fala em cada parte. A aba "Avaliação em lote" foi refeita (planilha com colunas em português,
+  `;` e UTF-8 com BOM para o Excel, validação por linha, resultado legível; saíram score e faixa). README ganhou "Como rodar" em
+  três níveis; `requirements.txt` ganhou catboost, lightgbm e optuna. **Atenção:** `modelos/ensemble/final/` (130 MB, os modelos em
+  produção) não vai para o Git; quem clonar precisa receber a pasta. O dashboard foi derrubado por falta de memória ao fim do dia.
+- **Inconsistência conhecida:** o quadro azul da aba "Perfis em alerta" diz que set/2026 foi previsto em 5,9% (modelo da janela
+  de teste, chave `acompanhamento`), e o slide 11 diz 7,4% (modelo de produção da época). Explicado no roteiro, não corrigido.
 
 - **Deck novo (2026-11-16):** https://claude.ai/artifact/StSM7i4HRX3Jd63qACBuq3, 13 slides para ~15 min (demonstração incluída), com
   abertura macro do agro, números do retreino (média, set/2026), backtest, conferência de set/2026 e a faixa de ±1 ponto. Fonte em
