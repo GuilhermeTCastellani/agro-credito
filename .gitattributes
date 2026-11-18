@@ -1,0 +1,2 @@
+# modelos treinados: binários, sem conversão de fim de linha
+modelos/ensemble/final/** -text

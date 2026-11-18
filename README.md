@@ -15,7 +15,7 @@ Há três níveis, do mais rápido ao mais completo. Para a maioria das pessoas,
 
 | Quero... | Precisa de | Tempo |
 |---|---|---|
-| 1. Abrir o dashboard | Python, este repositório e a pasta de modelos (`modelos/ensemble/final/`) | 10 minutos |
+| 1. Abrir o dashboard | Python e este repositório | 10 minutos |
 | 2. Atualizar com meses novos do Banco Central | o nível 1 e internet | cerca de 1 hora |
 | 3. Retreinar os modelos | o nível 2 e o Google Colab (GPU) | algumas horas |
 
@@ -35,13 +35,10 @@ python -m venv .venv
 
 No Linux ou no macOS, troque `.venv\Scripts\python` por `.venv/bin/python`.
 
-**b) Coloque os modelos na pasta certa.** Os quatro modelos em produção somam cerca de 130 MB e **não vão para o Git**. Peça ao
-grupo a pasta `modelos/ensemble/final/` (ou um zip dela) e copie-a para o mesmo caminho dentro do projeto. Ela deve conter
-`ensemble.joblib` e as subpastas `catboost/`, `lightgbm/`, `random_forest/` e `xgboost/`. Sem ela, o dashboard para com a mensagem
-"os modelos do ensemble não estão em modelos/ensemble/final". Os dados de que o dashboard precisa (`dados/processados/`) já vêm
-no repositório.
+Os modelos em produção (`modelos/ensemble/final/`, cerca de 130 MB) e os dados de que o dashboard precisa
+(`dados/processados/`) já vêm no repositório, por isso o clone demora um pouco.
 
-**c) Suba o dashboard:**
+**b) Suba o dashboard:**
 
 ```powershell
 .venv\Scripts\python -m streamlit run app.py
@@ -49,7 +46,7 @@ no repositório.
 
 Ele abre em http://localhost:8501. A primeira carga leva alguns segundos, porque o modelo vai para a memória.
 
-**d) Opcional: confira que está tudo certo** (cerca de 2,5 minutos, 87 testes):
+**c) Opcional: confira que está tudo certo** (cerca de 2,5 minutos, 87 testes):
 
 ```powershell
 .venv\Scripts\python -m pytest tests -q

@@ -76,8 +76,9 @@ Responda em português do Brasil. **Nunca faça commit nem push sem pedido expl�
   Nomes do grupo já estão na capa. Roteiro em `apresentacao/roteiro-apresentacao.docx` (falas, tempos, perguntas prováveis,
   checklist); falta preencher quem fala em cada parte. A aba "Avaliação em lote" foi refeita (planilha com colunas em português,
   `;` e UTF-8 com BOM para o Excel, validação por linha, resultado legível; saíram score e faixa). README ganhou "Como rodar" em
-  três níveis; `requirements.txt` ganhou catboost, lightgbm e optuna. **Atenção:** `modelos/ensemble/final/` (130 MB, os modelos em
-  produção) não vai para o Git; quem clonar precisa receber a pasta. O dashboard foi derrubado por falta de memória ao fim do dia.
+  três níveis; `requirements.txt` ganhou catboost, lightgbm e optuna. `modelos/ensemble/final/` (130 MB, os modelos em produção) passou
+  a ir para o Git, a pedido do usuário (exceção no `.gitignore`, `-text` no `.gitattributes`); o resto de `modelos/ensemble/` segue fora.
+  Os slides em `apresentacao/novo/` foram sincronizados com a versão publicada (inclui as edições feitas pela página). O dashboard foi derrubado por falta de memória ao fim do dia.
 - **Inconsistência conhecida:** o quadro azul da aba "Perfis em alerta" diz que set/2026 foi previsto em 5,9% (modelo da janela
   de teste, chave `acompanhamento`), e o slide 11 diz 7,4% (modelo de produção da época). Explicado no roteiro, não corrigido.
 

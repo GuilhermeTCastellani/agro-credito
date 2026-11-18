@@ -17,8 +17,9 @@ optuna_*.db
 .env
 *.token
 
-# modelos e resultados do Colab: ficam no Drive e no producao_final.zip, não no repositório
-modelos/ensemble/
+# resultados do Colab ficam no Drive; só os modelos em produção (modelos/ensemble/final, ~130 MB) vão para o repositório
+modelos/ensemble/*
+!modelos/ensemble/final/
 modelos/colab/
 modelos/backtest/*.npz
 /previsoes_*.npz
